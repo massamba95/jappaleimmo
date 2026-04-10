@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
   ACTIVE: { label: "Actif", variant: "default" },
@@ -33,11 +35,19 @@ export default async function LeasesPage() {
 
   return (
     <div>
-      <div>
-        <h1 className="text-3xl font-bold">Baux</h1>
-        <p className="text-muted-foreground mt-1">
-          Contrats de location en cours et passes.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Baux</h1>
+          <p className="text-muted-foreground mt-1">
+            Contrats de location en cours et passes.
+          </p>
+        </div>
+        <Link href="/dashboard/leases/new">
+          <Button>
+            <Plus className="h-4 w-4 mr-2" />
+            Creer un bail
+          </Button>
+        </Link>
       </div>
 
       {!leases || leases.length === 0 ? (
@@ -48,6 +58,12 @@ export default async function LeasesPage() {
             <p className="text-muted-foreground mt-1">
               Les baux apparaitront ici une fois crees.
             </p>
+            <Link href="/dashboard/leases/new" className="mt-4">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Creer un bail
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       ) : (

@@ -1,5 +1,8 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -12,17 +15,52 @@ import {
 } from "@/components/ui/table";
 import { Plus, Users } from "lucide-react";
 
-export default async function TenantsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+interface Tenant {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  cni: string | null;
+  created_at: string;
+}
 
-  const { data: tenants } = await supabase
-    .from("tenants")
-    .select("*")
-    .eq("user_id", user!.id)
-    .order("created_at", { ascending: false });
+export default function TenantsPage() {
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTenants() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("tenants")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error loading tenants:", error);
+      }
+
+      setTenants(data ?? []);
+      setLoading(false);
+    }
+    loadTenants();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-muted-foreground">Chargement...</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -41,7 +79,7 @@ export default async function TenantsPage() {
         </Link>
       </div>
 
-      {!tenants || tenants.length === 0 ? (
+      {tenants.length === 0 ? (
         <Card className="mt-8">
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Users className="h-12 w-12 text-muted-foreground" />
