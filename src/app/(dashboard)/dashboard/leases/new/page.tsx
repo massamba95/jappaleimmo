@@ -7,22 +7,21 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Building2, MapPin, DoorOpen, Ruler, User } from "lucide-react";
 import { toast } from "sonner";
 
 interface PropertyOption {
   id: string;
   title: string;
-  rent_amount: number;
+  type: string;
+  address: string;
   city: string;
+  rooms: number | null;
+  area: number | null;
+  rent_amount: number;
+  charges: number;
+  status: string;
 }
 
 interface TenantOption {
@@ -30,13 +29,23 @@ interface TenantOption {
   first_name: string;
   last_name: string;
   phone: string;
+  email: string | null;
 }
+
+const typeLabels: Record<string, string> = {
+  APARTMENT: "Appartement",
+  HOUSE: "Maison",
+  COMMERCIAL: "Local commercial",
+  LAND: "Terrain",
+};
 
 export default function NewLeasePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [selectedProperty, setSelectedProperty] = useState<PropertyOption | null>(null);
+  const [selectedTenant, setSelectedTenant] = useState<TenantOption | null>(null);
   const [formData, setFormData] = useState({
     property_id: "",
     tenant_id: "",
@@ -58,12 +67,12 @@ export default function NewLeasePage() {
       const [propertiesRes, tenantsRes] = await Promise.all([
         supabase
           .from("properties")
-          .select("id, title, rent_amount, city")
+          .select("id, title, type, address, city, rooms, area, rent_amount, charges, status")
           .eq("user_id", user.id)
           .order("title"),
         supabase
           .from("tenants")
-          .select("id, first_name, last_name, phone")
+          .select("id, first_name, last_name, phone, email")
           .eq("user_id", user.id)
           .order("last_name"),
       ]);
@@ -74,20 +83,21 @@ export default function NewLeasePage() {
     loadData();
   }, []);
 
-  function updateField(field: string, value: string) {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  function selectProperty(propertyId: string) {
+    const property = properties.find((p) => p.id === propertyId);
+    setSelectedProperty(property ?? null);
+    setFormData((prev) => ({
+      ...prev,
+      property_id: propertyId,
+      rent_amount: property?.rent_amount.toString() ?? "",
+      deposit: property?.rent_amount.toString() ?? "0",
+    }));
+  }
 
-    if (field === "property_id") {
-      const property = properties.find((p) => p.id === value);
-      if (property) {
-        setFormData((prev) => ({
-          ...prev,
-          property_id: value,
-          rent_amount: property.rent_amount.toString(),
-          deposit: property.rent_amount.toString(),
-        }));
-      }
-    }
+  function selectTenant(tenantId: string) {
+    const tenant = tenants.find((t) => t.id === tenantId);
+    setSelectedTenant(tenant ?? null);
+    setFormData((prev) => ({ ...prev, tenant_id: tenantId }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -99,10 +109,8 @@ export default function NewLeasePage() {
     }
 
     setLoading(true);
-
     const supabase = createClient();
 
-    // Creer le bail
     const { error: leaseError } = await supabase.from("leases").insert({
       property_id: formData.property_id,
       tenant_id: formData.tenant_id,
@@ -120,7 +128,6 @@ export default function NewLeasePage() {
       return;
     }
 
-    // Mettre a jour le statut du bien en OCCUPIED
     await supabase
       .from("properties")
       .update({ status: "OCCUPIED" })
@@ -141,129 +148,230 @@ export default function NewLeasePage() {
         Retour aux baux
       </Link>
 
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Creer un bail</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Bien */}
-            <div className="space-y-2">
-              <Label>Bien immobilier</Label>
-              <Select
-                value={formData.property_id}
-                onValueChange={(v) => v && updateField("property_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selectionnez un bien" />
-                </SelectTrigger>
-                <SelectContent>
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Formulaire */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Creer un bail</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Bien */}
+              <div className="space-y-2">
+                <Label>Bien immobilier</Label>
+                <select
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={formData.property_id}
+                  onChange={(e) => selectProperty(e.target.value)}
+                  required
+                >
+                  <option value="">-- Selectionnez un bien --</option>
                   {properties.map((property) => (
-                    <SelectItem key={property.id} value={property.id}>
+                    <option key={property.id} value={property.id}>
                       {property.title} — {property.city} ({property.rent_amount.toLocaleString("fr-FR")} FCFA)
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
-              {properties.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Aucun bien disponible.{" "}
-                  <Link href="/dashboard/properties/new" className="text-primary hover:underline">
-                    Ajouter un bien
-                  </Link>
-                </p>
-              )}
-            </div>
+                </select>
+                {properties.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Aucun bien disponible.{" "}
+                    <Link href="/dashboard/properties/new" className="text-primary hover:underline">
+                      Ajouter un bien
+                    </Link>
+                  </p>
+                )}
+              </div>
 
-            {/* Locataire */}
-            <div className="space-y-2">
-              <Label>Locataire</Label>
-              <Select
-                value={formData.tenant_id}
-                onValueChange={(v) => v && updateField("tenant_id", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selectionnez un locataire" />
-                </SelectTrigger>
-                <SelectContent>
+              {/* Locataire */}
+              <div className="space-y-2">
+                <Label>Locataire</Label>
+                <select
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={formData.tenant_id}
+                  onChange={(e) => selectTenant(e.target.value)}
+                  required
+                >
+                  <option value="">-- Selectionnez un locataire --</option>
                   {tenants.map((tenant) => (
-                    <SelectItem key={tenant.id} value={tenant.id}>
+                    <option key={tenant.id} value={tenant.id}>
                       {tenant.first_name} {tenant.last_name} — {tenant.phone}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
-              {tenants.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Aucun locataire disponible.{" "}
-                  <Link href="/dashboard/tenants/new" className="text-primary hover:underline">
-                    Ajouter un locataire
-                  </Link>
-                </p>
-              )}
-            </div>
+                </select>
+                {tenants.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Aucun locataire disponible.{" "}
+                    <Link href="/dashboard/tenants/new" className="text-primary hover:underline">
+                      Ajouter un locataire
+                    </Link>
+                  </p>
+                )}
+              </div>
 
-            {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start_date">Date de debut</Label>
-                <Input
-                  id="start_date"
-                  type="date"
-                  value={formData.start_date}
-                  onChange={(e) => updateField("start_date", e.target.value)}
-                  required
-                />
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start_date">Date de debut</Label>
+                  <Input
+                    id="start_date"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, start_date: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end_date">Date de fin (optionnel)</Label>
+                  <Input
+                    id="end_date"
+                    type="date"
+                    value={formData.end_date}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, end_date: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="end_date">Date de fin (optionnel)</Label>
-                <Input
-                  id="end_date"
-                  type="date"
-                  value={formData.end_date}
-                  onChange={(e) => updateField("end_date", e.target.value)}
-                />
-              </div>
-            </div>
 
-            {/* Montants */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="rent_amount">Loyer mensuel (FCFA)</Label>
-                <Input
-                  id="rent_amount"
-                  type="number"
-                  placeholder="150000"
-                  value={formData.rent_amount}
-                  onChange={(e) => updateField("rent_amount", e.target.value)}
-                  required
-                />
+              {/* Montants */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rent_amount">Loyer mensuel (FCFA)</Label>
+                  <Input
+                    id="rent_amount"
+                    type="number"
+                    placeholder="150000"
+                    value={formData.rent_amount}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, rent_amount: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deposit">Caution (FCFA)</Label>
+                  <Input
+                    id="deposit"
+                    type="number"
+                    placeholder="150000"
+                    value={formData.deposit}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, deposit: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="deposit">Caution (FCFA)</Label>
-                <Input
-                  id="deposit"
-                  type="number"
-                  placeholder="150000"
-                  value={formData.deposit}
-                  onChange={(e) => updateField("deposit", e.target.value)}
-                />
-              </div>
-            </div>
 
-            <div className="flex gap-4">
-              <Button type="submit" disabled={loading}>
-                {loading ? "Creation en cours..." : "Creer le bail"}
-              </Button>
-              <Link href="/dashboard/leases">
-                <Button type="button" variant="outline">
-                  Annuler
+              <div className="flex gap-4">
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Creation en cours..." : "Creer le bail"}
                 </Button>
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                <Link href="/dashboard/leases">
+                  <Button type="button" variant="outline">
+                    Annuler
+                  </Button>
+                </Link>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Panneau lateral : details */}
+        <div className="space-y-6">
+          {/* Details du bien selectionne */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Building2 className="h-5 w-5" />
+                Bien selectionne
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!selectedProperty ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Selectionnez un bien pour voir ses details
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-semibold text-lg">{selectedProperty.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {typeLabels[selectedProperty.type] ?? selectedProperty.type}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedProperty.address}, {selectedProperty.city}</span>
+                  </div>
+                  {selectedProperty.rooms && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <DoorOpen className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedProperty.rooms} pieces</span>
+                    </div>
+                  )}
+                  {selectedProperty.area && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Ruler className="h-4 w-4 text-muted-foreground" />
+                      <span>{selectedProperty.area} m2</span>
+                    </div>
+                  )}
+                  <div className="pt-3 border-t space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Loyer</span>
+                      <span className="font-semibold">{selectedProperty.rent_amount.toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Charges</span>
+                      <span>{selectedProperty.charges.toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold pt-1 border-t">
+                      <span>Total</span>
+                      <span>{(selectedProperty.rent_amount + selectedProperty.charges).toLocaleString("fr-FR")} FCFA</span>
+                    </div>
+                  </div>
+                  <div className="pt-2">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      selectedProperty.status === "AVAILABLE"
+                        ? "bg-green-100 text-green-700"
+                        : selectedProperty.status === "OCCUPIED"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}>
+                      {selectedProperty.status === "AVAILABLE" ? "Disponible" :
+                       selectedProperty.status === "OCCUPIED" ? "Occupe" : "En travaux"}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Details du locataire selectionne */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <User className="h-5 w-5" />
+                Locataire selectionne
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!selectedTenant ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Selectionnez un locataire pour voir ses details
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="font-semibold text-lg">
+                    {selectedTenant.first_name} {selectedTenant.last_name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Tel : {selectedTenant.phone}
+                  </p>
+                  {selectedTenant.email && (
+                    <p className="text-sm text-muted-foreground">
+                      Email : {selectedTenant.email}
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -117,21 +117,19 @@ export default function NewPaymentPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label>Bail (locataire — bien)</Label>
-              <Select
+              <select
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={formData.lease_id}
-                onValueChange={(v) => v && updateField("lease_id", v)}
+                onChange={(e) => updateField("lease_id", e.target.value)}
+                required
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selectionnez un bail" />
-                </SelectTrigger>
-                <SelectContent>
-                  {leases.map((lease) => (
-                    <SelectItem key={lease.id} value={lease.id}>
-                      {lease.tenants?.first_name} {lease.tenants?.last_name} — {lease.properties?.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">-- Selectionnez un bail --</option>
+                {leases.map((lease) => (
+                  <option key={lease.id} value={lease.id}>
+                    {lease.tenants?.first_name} {lease.tenants?.last_name} — {lease.properties?.title}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -160,20 +158,16 @@ export default function NewPaymentPage() {
 
             <div className="space-y-2">
               <Label>Methode de paiement</Label>
-              <Select
+              <select
+                className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={formData.method}
-                onValueChange={(v) => v && updateField("method", v)}
+                onChange={(e) => updateField("method", e.target.value)}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CASH">Especes</SelectItem>
-                  <SelectItem value="TRANSFER">Virement bancaire</SelectItem>
-                  <SelectItem value="WAVE">Wave</SelectItem>
-                  <SelectItem value="ORANGE_MONEY">Orange Money</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="CASH">Especes</option>
+                <option value="TRANSFER">Virement bancaire</option>
+                <option value="WAVE">Wave</option>
+                <option value="ORANGE_MONEY">Orange Money</option>
+              </select>
             </div>
 
             <div className="flex gap-4">

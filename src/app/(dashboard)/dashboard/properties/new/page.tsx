@@ -102,20 +102,16 @@ export default function NewPropertyPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type de bien</Label>
-                <Select
+                <select
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={formData.type}
-                  onValueChange={(v) => v && updateField("type", v)}
+                  onChange={(e) => updateField("type", e.target.value)}
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="APARTMENT">Appartement</SelectItem>
-                    <SelectItem value="HOUSE">Maison</SelectItem>
-                    <SelectItem value="COMMERCIAL">Local commercial</SelectItem>
-                    <SelectItem value="LAND">Terrain</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="APARTMENT">Appartement</option>
+                  <option value="HOUSE">Maison</option>
+                  <option value="COMMERCIAL">Local commercial</option>
+                  <option value="LAND">Terrain</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="city">Ville</Label>
