@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DakarImmo
 
-## Getting Started
+Plateforme SaaS de gestion immobiliere pour le marche senegalais et africain.
 
-First, run the development server:
+## Stack technique
+
+- **Frontend** : Next.js 16 + Tailwind CSS + shadcn/ui
+- **Backend** : Supabase (PostgreSQL, Auth, Storage)
+- **Deploiement** : Vercel
+
+## Installation
 
 ```bash
+# Cloner le projet
+git clone https://github.com/VOTRE_USERNAME/dakaimmo.git
+cd dakaimmo
+
+# Installer les dependances
+npm install
+
+# Copier les variables d'environnement
+cp .env.local.example .env.local
+# Remplir avec vos cles Supabase
+
+# Lancer en mode dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuration Supabase
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Creer un projet sur [supabase.com](https://supabase.com)
+2. Copier l'URL et la cle `anon` dans `.env.local`
+3. Executer le script `supabase/schema.sql` dans le SQL Editor de Supabase
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Structure du projet
 
-## Learn More
+```
+src/
+├── app/
+│   ├── (auth)/           # Pages login/register
+│   ├── (dashboard)/      # Dashboard protege
+│   │   └── dashboard/
+│   │       ├── properties/
+│   │       ├── tenants/
+│   │       ├── leases/
+│   │       ├── payments/
+│   │       └── settings/
+│   └── api/auth/         # Callback Supabase Auth
+├── components/
+│   ├── dashboard/        # Composants du dashboard
+│   └── ui/               # Composants shadcn/ui
+├── lib/
+│   └── supabase/         # Clients Supabase (server/client)
+└── types/                # Types TypeScript
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Fonctionnalites
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Gestion des biens immobiliers (CRUD)
+- Gestion des locataires
+- Contrats de bail
+- Suivi des paiements
+- Tableau de bord avec KPIs
+- Authentification securisee
+- Row Level Security (RLS) sur toutes les tables
