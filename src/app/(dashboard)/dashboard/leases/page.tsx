@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/lib/hooks/use-org";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,24 +37,23 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export default function LeasesPage() {
+  const { orgId } = useOrg();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    loadLeases();
-  }, []);
+    if (orgId) loadLeases();
+  }, [orgId]);
 
   async function loadLeases() {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
 
     const { data } = await supabase
       .from("leases")
-      .select("*, properties!inner(title, user_id), tenants(first_name, last_name)")
-      .eq("properties.user_id", user.id)
+      .select("*, properties!inner(title, org_id), tenants(first_name, last_name)")
+      .eq("properties.org_id", orgId!)
       .order("created_at", { ascending: false });
 
     setLeases((data as Lease[]) ?? []);

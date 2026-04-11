@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/lib/hooks/use-org";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,25 +56,23 @@ export default function NewLeasePage() {
     deposit: "0",
   });
 
+  const { orgId } = useOrg();
+
   useEffect(() => {
+    if (!orgId) return;
     async function loadData() {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) return;
 
       const [propertiesRes, tenantsRes] = await Promise.all([
         supabase
           .from("properties")
           .select("id, title, type, address, city, rooms, area, rent_amount, charges, status")
-          .eq("user_id", user.id)
+          .eq("org_id", orgId!)
           .order("title"),
         supabase
           .from("tenants")
           .select("id, first_name, last_name, phone, email")
-          .eq("user_id", user.id)
+          .eq("org_id", orgId!)
           .order("last_name"),
       ]);
 
@@ -81,7 +80,7 @@ export default function NewLeasePage() {
       setTenants(tenantsRes.data ?? []);
     }
     loadData();
-  }, []);
+  }, [orgId]);
 
   function selectProperty(propertyId: string) {
     const property = properties.find((p) => p.id === propertyId);
