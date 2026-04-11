@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
+import { getPlanLimits } from "@/lib/plans";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, CreditCard, AlertTriangle } from "lucide-react";
+import { Building2, Users, CreditCard, AlertTriangle, Clock } from "lucide-react";
 
 export default function DashboardPage() {
-  const { orgId, orgName, orgStatus, loading: orgLoading } = useOrg();
+  const { orgId, orgName, orgPlan, orgStatus, trialDaysLeft, userName: hookUserName, loading: orgLoading } = useOrg();
   const [stats, setStats] = useState({
     totalProperties: 0,
     occupiedProperties: 0,
@@ -23,8 +24,7 @@ export default function DashboardPage() {
 
     async function load() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      setUserName(user?.user_metadata?.first_name ?? "Utilisateur");
+      setUserName(hookUserName ?? "Utilisateur");
 
       const [propRes, occRes, tenRes] = await Promise.all([
         supabase.from("properties").select("*", { count: "exact", head: true }).eq("org_id", orgId!),
@@ -52,12 +52,14 @@ export default function DashboardPage() {
     ? Math.round((stats.occupiedProperties / stats.totalProperties) * 100)
     : 0;
 
+  const limits = getPlanLimits(orgPlan ?? "FREE");
+
   const statCards = [
     {
       title: "Total biens",
-      value: stats.totalProperties,
+      value: `${stats.totalProperties}/${limits.maxProperties}`,
       icon: Building2,
-      description: `${stats.occupiedProperties} occupes`,
+      description: `${stats.occupiedProperties} occupes — Plan ${limits.label}`,
     },
     {
       title: "Locataires",
@@ -90,8 +92,12 @@ export default function DashboardPage() {
 
       {/* Bandeau essai */}
       {orgStatus === "TRIAL" && (
-        <div className="bg-blue-50 text-blue-700 p-4 rounded-lg mb-6 text-center">
-          Vous etes en periode d&apos;essai gratuit. Profitez de toutes les fonctionnalites !
+        <div className="bg-blue-50 text-blue-700 p-4 rounded-lg mb-6 flex items-center justify-center gap-2">
+          <Clock className="h-5 w-5" />
+          <span>
+            Periode d&apos;essai — <strong>{trialDaysLeft} jour{trialDaysLeft > 1 ? "s" : ""} restant{trialDaysLeft > 1 ? "s" : ""}</strong>.
+            Profitez de toutes les fonctionnalites !
+          </span>
         </div>
       )}
 

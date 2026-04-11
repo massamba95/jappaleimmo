@@ -1,21 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
+import { getPlanLimits } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 export default function NewPropertyPage() {
   const router = useRouter();
-  const { orgId } = useOrg();
+  const { orgId, orgPlan } = useOrg();
   const [loading, setLoading] = useState(false);
+  const [propertyCount, setPropertyCount] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) return;
+    async function checkLimit() {
+      const supabase = createClient();
+      const { count } = await supabase
+        .from("properties")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", orgId!);
+
+      const current = count ?? 0;
+      const limits = getPlanLimits(orgPlan ?? "FREE");
+      setPropertyCount(current);
+      setLimitReached(current >= limits.maxProperties);
+    }
+    checkLimit();
+  }, [orgId, orgPlan]);
   const [formData, setFormData] = useState({
     title: "",
     type: "APARTMENT",
@@ -33,7 +53,7 @@ export default function NewPropertyPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId) return;
+    if (!orgId || limitReached) return;
     setLoading(true);
 
     const supabase = createClient();
@@ -64,6 +84,33 @@ export default function NewPropertyPage() {
     toast.success("Bien ajoute avec succes !");
     router.push("/dashboard/properties");
     router.refresh();
+  }
+
+  const limits = getPlanLimits(orgPlan ?? "FREE");
+
+  if (limitReached) {
+    return (
+      <div>
+        <Link href="/dashboard/properties" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
+          <ArrowLeft className="h-4 w-4" />Retour aux biens
+        </Link>
+        <Card className="max-w-2xl">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <AlertTriangle className="h-12 w-12 text-yellow-500" />
+            <h3 className="mt-4 text-lg font-semibold">Limite atteinte</h3>
+            <p className="text-muted-foreground mt-2 text-center">
+              Vous avez atteint la limite de <strong>{limits.maxProperties} bien(s)</strong> pour le plan <strong>{limits.label}</strong>.
+            </p>
+            <p className="text-muted-foreground mt-1 text-center">
+              Passez au plan superieur pour ajouter plus de biens.
+            </p>
+            <Link href="/dashboard/properties" className="mt-6">
+              <Button variant="outline">Retour aux biens</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

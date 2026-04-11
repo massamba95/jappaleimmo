@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getPlanLimits, getTrialDaysLeft } from "@/lib/plans";
 
 interface OrgData {
   orgId: string | null;
@@ -10,6 +11,10 @@ interface OrgData {
   orgStatus: string | null;
   role: string | null;
   userId: string | null;
+  userName: string | null;
+  maxProperties: number;
+  maxMembers: number;
+  trialDaysLeft: number;
   loading: boolean;
 }
 
@@ -21,6 +26,10 @@ export function useOrg(): OrgData {
     orgStatus: null,
     role: null,
     userId: null,
+    userName: null,
+    maxProperties: 1,
+    maxMembers: 1,
+    trialDaysLeft: 0,
     loading: true,
   });
 
@@ -38,19 +47,25 @@ export function useOrg(): OrgData {
 
       const { data: membership } = await supabase
         .from("memberships")
-        .select("org_id, role, organizations(name, plan, status)")
+        .select("org_id, role, organizations(name, plan, status, trial_ends_at)")
         .eq("user_id", user.id)
         .single();
 
       if (membership) {
         const org = membership.organizations as unknown as Record<string, string> | null;
+        const plan = org?.plan ?? "FREE";
+        const limits = getPlanLimits(plan);
         setData({
           orgId: membership.org_id,
           orgName: org?.name ?? null,
-          orgPlan: org?.plan ?? null,
+          orgPlan: plan,
           orgStatus: org?.status ?? null,
           role: membership.role,
           userId: user.id,
+          userName: user.user_metadata?.first_name ?? null,
+          maxProperties: limits.maxProperties,
+          maxMembers: limits.maxMembers,
+          trialDaysLeft: getTrialDaysLeft(org?.trial_ends_at ?? null),
           loading: false,
         });
       } else {

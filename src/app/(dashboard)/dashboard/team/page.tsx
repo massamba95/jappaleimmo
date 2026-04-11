@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
+import { getPlanLimits } from "@/lib/plans";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,16 +62,19 @@ export default function TeamPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("memberships")
-      .select("id, role, created_at, user_id")
+      .select("id, role, created_at, user_id, profiles(email, first_name, last_name)")
       .eq("org_id", orgId!)
       .order("created_at");
 
     if (data) {
-      setMembers(data.map((m) => ({
-        ...m,
-        user_email: "—",
-        user_name: "Membre",
-      })));
+      setMembers(data.map((m) => {
+        const profile = m.profiles as unknown as Record<string, string> | null;
+        return {
+          ...m,
+          user_email: profile?.email ?? "—",
+          user_name: profile ? `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim() || "Membre" : "Membre",
+        };
+      }));
     }
     setLoading(false);
   }
@@ -178,7 +182,7 @@ export default function TeamPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Membres</p>
-              <p className="font-semibold">{members.length}</p>
+              <p className="font-semibold">{members.length} / {getPlanLimits(orgPlan ?? "FREE").maxMembers}</p>
             </div>
           </div>
         </CardContent>
@@ -210,7 +214,12 @@ export default function TeamPage() {
               <TableBody>
                 {members.map((member) => (
                   <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.user_email}</TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{member.user_name}</p>
+                        <p className="text-sm text-muted-foreground">{member.user_email}</p>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={roleVariants[member.role] ?? "outline"}>
                         {roleLabels[member.role] ?? member.role}
