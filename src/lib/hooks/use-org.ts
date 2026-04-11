@@ -45,11 +45,14 @@ export function useOrg(): OrgData {
         return;
       }
 
-      const { data: membership } = await supabase
+      const { data: memberships } = await supabase
         .from("memberships")
         .select("org_id, role, organizations(name, plan, status, trial_ends_at)")
         .eq("user_id", user.id)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const membership = memberships?.[0];
 
       if (membership) {
         const org = membership.organizations as unknown as Record<string, string> | null;
