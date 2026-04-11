@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
+import { logActivity } from "@/lib/activity-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,7 @@ export default function NewPaymentPage() {
     method: "CASH",
   });
 
-  const { orgId } = useOrg();
+  const { orgId, userId, userName } = useOrg();
 
   useEffect(() => {
     if (!orgId) return;
@@ -93,6 +94,18 @@ export default function NewPaymentPage() {
       toast.error("Erreur lors de l'enregistrement du paiement.");
       setLoading(false);
       return;
+    }
+
+    const selectedLease = leases.find((l) => l.id === formData.lease_id);
+    if (orgId && userId) {
+      await logActivity({
+        orgId, userId,
+        userName: userName ?? "Utilisateur",
+        action: "CREATE",
+        entityType: "PAYMENT",
+        entityName: `${selectedLease?.tenants?.first_name ?? ""} ${selectedLease?.tenants?.last_name ?? ""}`,
+        details: `${formData.amount} FCFA - ${formData.method}`,
+      });
     }
 
     toast.success("Paiement enregistre avec succes !");

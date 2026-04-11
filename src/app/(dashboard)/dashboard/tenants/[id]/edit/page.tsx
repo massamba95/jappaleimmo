@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/lib/hooks/use-org";
+import { logActivity } from "@/lib/activity-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ export default function EditTenantPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const { orgId, userId, userName } = useOrg();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
@@ -65,6 +68,17 @@ export default function EditTenantPage() {
       toast.error("Erreur lors de la modification.");
       setLoading(false);
       return;
+    }
+
+    if (orgId && userId) {
+      await logActivity({
+        orgId, userId,
+        userName: userName ?? "Utilisateur",
+        action: "UPDATE",
+        entityType: "TENANT",
+        entityId: id,
+        entityName: `${formData.first_name} ${formData.last_name}`,
+      });
     }
 
     toast.success("Locataire modifie avec succes !");

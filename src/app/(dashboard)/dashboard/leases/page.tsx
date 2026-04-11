@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
 import { hasPermission } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +39,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 };
 
 export default function LeasesPage() {
-  const { orgId, role } = useOrg();
+  const { orgId, role, userId, userName } = useOrg();
   const canCreate = hasPermission(role, "leases:create");
   const canEdit = hasPermission(role, "leases:edit");
   const canDelete = hasPermission(role, "leases:delete");
@@ -93,6 +94,17 @@ export default function LeasesPage() {
           .update({ status: "AVAILABLE" })
           .eq("id", lease.property_id);
       }
+    }
+
+    if (orgId && userId) {
+      await logActivity({
+        orgId,
+        userId,
+        userName: userName ?? "Utilisateur",
+        action: "DELETE",
+        entityType: "LEASE",
+        entityName: `${lease.properties?.title ?? ""} - ${lease.tenants?.first_name ?? ""} ${lease.tenants?.last_name ?? ""}`,
+      });
     }
 
     toast.success("Bail supprime.");

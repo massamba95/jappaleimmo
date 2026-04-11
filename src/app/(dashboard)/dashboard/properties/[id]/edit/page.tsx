@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useOrg } from "@/lib/hooks/use-org";
+import { logActivity } from "@/lib/activity-log";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ export default function EditPropertyPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const { orgId, userId, userName } = useOrg();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -121,6 +124,17 @@ export default function EditPropertyPage() {
       toast.error("Erreur lors de la modification.");
       setLoading(false);
       return;
+    }
+
+    if (orgId && userId) {
+      await logActivity({
+        orgId, userId,
+        userName: userName ?? "Utilisateur",
+        action: "UPDATE",
+        entityType: "PROPERTY",
+        entityId: id,
+        entityName: formData.title,
+      });
     }
 
     toast.success("Bien modifie avec succes !");
