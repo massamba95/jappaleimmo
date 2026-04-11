@@ -18,37 +18,29 @@ export type Permission =
   | "team:manage"
   | "settings:org";
 
+const ALL_CRUD: Permission[] = [
+  "properties:create", "properties:edit", "properties:delete", "properties:view",
+  "tenants:create", "tenants:edit", "tenants:delete", "tenants:view",
+  "leases:create", "leases:edit", "leases:delete", "leases:view",
+  "payments:create", "payments:view",
+];
+
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
-    "properties:create", "properties:edit", "properties:delete", "properties:view",
-    "tenants:create", "tenants:edit", "tenants:delete", "tenants:view",
-    "leases:create", "leases:edit", "leases:delete", "leases:view",
-    "payments:create", "payments:view",
+    ...ALL_CRUD,
     "team:manage", "settings:org",
   ],
   MANAGER: [
-    "properties:create", "properties:edit", "properties:delete", "properties:view",
-    "tenants:create", "tenants:edit", "tenants:delete", "tenants:view",
-    "leases:create", "leases:edit", "leases:delete", "leases:view",
-    "payments:create", "payments:view",
+    ...ALL_CRUD,
   ],
   AGENT: [
-    "properties:create", "properties:edit", "properties:view",
-    "tenants:create", "tenants:edit", "tenants:view",
-    "leases:create", "leases:view",
-    "payments:create", "payments:view",
+    ...ALL_CRUD,
   ],
   ACCOUNTANT: [
-    "properties:view",
-    "tenants:view",
-    "leases:view",
-    "payments:create", "payments:view",
+    ...ALL_CRUD,
   ],
   SECRETARY: [
-    "properties:view",
-    "tenants:create", "tenants:view",
-    "leases:view",
-    "payments:view",
+    ...ALL_CRUD,
   ],
 };
 
