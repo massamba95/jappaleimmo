@@ -41,7 +41,7 @@ export function SidebarNav() {
       <div className="p-6 border-b">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Building2 className="h-7 w-7 text-primary" />
-          <span className="text-lg font-bold">DakarImmo</span>
+          <span className="text-lg font-bold">Jappale Immo</span>
         </Link>
       </div>
 

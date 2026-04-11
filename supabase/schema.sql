@@ -1,4 +1,4 @@
--- DakarImmo - Schema de base de donnees Supabase
+-- JappaleImmo - Schema de base de donnees Supabase
 -- A executer dans le SQL Editor de Supabase
 
 -- ============================================================

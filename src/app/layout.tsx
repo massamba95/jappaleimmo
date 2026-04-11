@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DakarImmo — Gestion Immobiliere",
+  title: "Jappale Immo — Gestion Immobiliere",
   description:
     "Plateforme SaaS de gestion immobiliere pour le marche senegalais et africain. Gerez vos biens, locataires et paiements facilement.",
 };

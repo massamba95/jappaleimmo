@@ -1,4 +1,4 @@
-# DakarImmo
+# JappaleImmo
 
 Plateforme SaaS de gestion immobiliere pour le marche senegalais et africain.
 
