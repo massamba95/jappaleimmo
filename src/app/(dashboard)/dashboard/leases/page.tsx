@@ -66,6 +66,11 @@ export default function LeasesPage() {
   }
 
   async function handleDelete(lease: Lease) {
+    if (lease.status === "ACTIVE") {
+      toast.error("Impossible de supprimer un bail actif. Resiliez-le ou expirez-le d'abord.");
+      return;
+    }
+
     if (deleting !== lease.id) {
       setDeleting(lease.id);
       return;

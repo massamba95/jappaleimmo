@@ -40,10 +40,40 @@ export function DeleteButton({ table, id, label, entityName, redirectTo, onPrope
     setLoading(true);
     const supabase = createClient();
 
+    // Verifier si un bien est lie a un bail
+    if (table === "properties") {
+      const { count } = await supabase
+        .from("leases")
+        .select("*", { count: "exact", head: true })
+        .eq("property_id", id);
+
+      if (count && count > 0) {
+        toast.error("Impossible de supprimer ce bien. Il est lie a un ou plusieurs baux. Supprimez d'abord les baux.");
+        setLoading(false);
+        setConfirming(false);
+        return;
+      }
+    }
+
+    // Verifier si un locataire est lie a un bail
+    if (table === "tenants") {
+      const { count } = await supabase
+        .from("leases")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", id);
+
+      if (count && count > 0) {
+        toast.error("Impossible de supprimer ce locataire. Il est lie a un ou plusieurs baux.");
+        setLoading(false);
+        setConfirming(false);
+        return;
+      }
+    }
+
     const { error } = await supabase.from(table).delete().eq("id", id);
 
     if (error) {
-      toast.error(`Erreur lors de la suppression.`);
+      toast.error("Erreur lors de la suppression.");
       console.error(error);
       setLoading(false);
       setConfirming(false);
