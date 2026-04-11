@@ -18,29 +18,35 @@ export type Permission =
   | "team:manage"
   | "settings:org";
 
-const ALL_CRUD: Permission[] = [
-  "properties:create", "properties:edit", "properties:delete", "properties:view",
-  "tenants:create", "tenants:edit", "tenants:delete", "tenants:view",
-  "leases:create", "leases:edit", "leases:delete", "leases:view",
+const ALL_VIEW_CREATE_EDIT: Permission[] = [
+  "properties:create", "properties:edit", "properties:view",
+  "tenants:create", "tenants:edit", "tenants:view",
+  "leases:create", "leases:edit", "leases:view",
   "payments:create", "payments:view",
+];
+
+const DELETE_PERMS: Permission[] = [
+  "properties:delete", "tenants:delete", "leases:delete",
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
-    ...ALL_CRUD,
+    ...ALL_VIEW_CREATE_EDIT,
+    ...DELETE_PERMS,
     "team:manage", "settings:org",
   ],
   MANAGER: [
-    ...ALL_CRUD,
+    ...ALL_VIEW_CREATE_EDIT,
+    ...DELETE_PERMS,
   ],
   AGENT: [
-    ...ALL_CRUD,
+    ...ALL_VIEW_CREATE_EDIT,
   ],
   ACCOUNTANT: [
-    ...ALL_CRUD,
+    ...ALL_VIEW_CREATE_EDIT,
   ],
   SECRETARY: [
-    ...ALL_CRUD,
+    ...ALL_VIEW_CREATE_EDIT,
   ],
 };
 
