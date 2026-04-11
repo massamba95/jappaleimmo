@@ -101,7 +101,7 @@ export default function HomePage() {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Building2 className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Jappale Immo</span>
+            <span className="text-xl font-bold">Jappalé Immo</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <a href="#features" className="text-sm text-muted-foreground hover:text-foreground">
@@ -236,10 +236,10 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Building2 className="h-6 w-6 text-primary" />
-              <span className="font-bold">Jappale Immo</span>
+              <span className="font-bold">Jappalé Immo</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              &copy; 2026 Jappale Immo. Tous droits reserves.
+              &copy; 2026 Jappalé Immo. Tous droits reserves.
             </p>
           </div>
         </div>

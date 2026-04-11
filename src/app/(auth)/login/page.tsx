@@ -44,7 +44,7 @@ export default function LoginPage() {
         <CardHeader className="text-center">
           <Link href="/" className="flex items-center justify-center gap-2 mb-4">
             <Building2 className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">Jappale Immo</span>
+            <span className="text-xl font-bold">Jappalé Immo</span>
           </Link>
           <CardTitle className="text-2xl">Connexion</CardTitle>
           <CardDescription>
