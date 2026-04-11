@@ -55,13 +55,27 @@ export default function TeamPage() {
   const [inviting, setInviting] = useState(false);
   const [changingRole, setChangingRole] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [inviteCode, setInviteCode] = useState("");
 
   const limits = getPlanLimits(orgPlan ?? "FREE");
   const canAddMore = members.length < limits.maxMembers;
 
   useEffect(() => {
-    if (orgId) loadMembers();
+    if (orgId) {
+      loadMembers();
+      loadInviteCode();
+    }
   }, [orgId]);
+
+  async function loadInviteCode() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("organizations")
+      .select("invite_code")
+      .eq("id", orgId!)
+      .single();
+    if (data?.invite_code) setInviteCode(data.invite_code);
+  }
 
   async function loadMembers() {
     const supabase = createClient();
@@ -233,6 +247,33 @@ export default function TeamPage() {
                 {inviting ? "Ajout..." : "Ajouter"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Code d'invitation */}
+      {inviteCode && (
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Code d&apos;invitation</p>
+                <p className="text-2xl font-mono font-bold tracking-widest">{inviteCode}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Partagez ce code avec vos employes pour qu&apos;ils rejoignent votre equipe lors de leur inscription.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(inviteCode);
+                  toast.success("Code copie !");
+                }}
+              >
+                Copier
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
