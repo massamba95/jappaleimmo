@@ -22,6 +22,7 @@ import {
   History,
   MoreHorizontal,
   X,
+  UserSquare2,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -46,6 +47,7 @@ export function MobileNav() {
   ];
 
   const moreItems: { href: string; label: string; icon: typeof LayoutDashboard; permission: Permission | null }[] = [
+    { href: "/dashboard/owners", label: "Propriétaires", icon: UserSquare2, permission: "owners:view" },
     { href: "/dashboard/leases", label: "Baux", icon: FileText, permission: "leases:view" },
     { href: "/dashboard/activity", label: "Historique", icon: History, permission: "team:manage" },
     { href: "/dashboard/team", label: "Equipe", icon: UsersRound, permission: "team:manage" },

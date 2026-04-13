@@ -14,11 +14,12 @@ interface DeleteButtonProps {
   id: string;
   label: string;
   entityName?: string;
-  redirectTo: string;
+  redirectTo?: string;
+  onDeleted?: () => void;
   onPropertyDelete?: string;
 }
 
-export function DeleteButton({ table, id, label, entityName, redirectTo, onPropertyDelete }: DeleteButtonProps) {
+export function DeleteButton({ table, id, label, entityName, redirectTo, onDeleted, onPropertyDelete }: DeleteButtonProps) {
   const router = useRouter();
   const { orgId, userId, userName } = useOrg();
   const [confirming, setConfirming] = useState(false);
@@ -29,6 +30,7 @@ export function DeleteButton({ table, id, label, entityName, redirectTo, onPrope
     tenants: "TENANT",
     leases: "LEASE",
     payments: "PAYMENT",
+    owners: "OWNER",
   };
 
   async function handleDelete() {
@@ -99,9 +101,13 @@ export function DeleteButton({ table, id, label, entityName, redirectTo, onPrope
       });
     }
 
-    toast.success(`${label} supprime avec succes.`);
-    router.push(redirectTo);
-    router.refresh();
+    toast.success(`${label} supprimé avec succès.`);
+    if (onDeleted) {
+      onDeleted();
+    } else if (redirectTo) {
+      router.push(redirectTo);
+      router.refresh();
+    }
   }
 
   return (

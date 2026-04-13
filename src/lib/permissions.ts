@@ -15,6 +15,10 @@ export type Permission =
   | "leases:view"
   | "payments:create"
   | "payments:view"
+  | "owners:create"
+  | "owners:edit"
+  | "owners:delete"
+  | "owners:view"
   | "team:manage"
   | "settings:org";
 
@@ -23,10 +27,11 @@ const ALL_VIEW_CREATE_EDIT: Permission[] = [
   "tenants:create", "tenants:edit", "tenants:view",
   "leases:create", "leases:edit", "leases:view",
   "payments:create", "payments:view",
+  "owners:create", "owners:edit", "owners:view",
 ];
 
 const DELETE_PERMS: Permission[] = [
-  "properties:delete", "tenants:delete", "leases:delete",
+  "properties:delete", "tenants:delete", "leases:delete", "owners:delete",
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {

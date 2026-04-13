@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 
 type Action = "CREATE" | "UPDATE" | "DELETE";
-type EntityType = "PROPERTY" | "TENANT" | "LEASE" | "PAYMENT";
+type EntityType = "PROPERTY" | "TENANT" | "LEASE" | "PAYMENT" | "OWNER";
 
 interface LogParams {
   orgId: string;
@@ -39,4 +39,5 @@ export const entityLabels: Record<string, string> = {
   TENANT: "Locataire",
   LEASE: "Bail",
   PAYMENT: "Paiement",
+  OWNER: "Propriétaire",
 };

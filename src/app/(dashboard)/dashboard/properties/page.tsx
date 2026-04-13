@@ -15,12 +15,14 @@ interface Property {
   id: string;
   title: string;
   type: string;
+  listing_type: string;
   address: string;
   city: string;
   rooms: number | null;
   area: number | null;
   rent_amount: number;
   charges: number;
+  sale_price: number | null;
   status: string;
   photos: string[];
   created_at: string;
@@ -33,10 +35,17 @@ const typeLabels: Record<string, string> = {
   LAND: "Terrain",
 };
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   AVAILABLE: { label: "Disponible", variant: "secondary" },
-  OCCUPIED: { label: "Occupe", variant: "default" },
+  OCCUPIED: { label: "Occupé", variant: "default" },
   MAINTENANCE: { label: "En travaux", variant: "destructive" },
+  SOLD: { label: "Vendu", variant: "outline" },
+};
+
+const listingConfig: Record<string, { label: string; color: string }> = {
+  RENT: { label: "Location", color: "text-blue-600 bg-blue-50" },
+  SALE: { label: "Vente", color: "text-orange-600 bg-orange-50" },
+  BOTH: { label: "Location + Vente", color: "text-purple-600 bg-purple-50" },
 };
 
 const typeIcons: Record<string, typeof Home> = {
@@ -143,9 +152,21 @@ export default function PropertiesPage() {
                         <MapPin className="h-4 w-4" />
                         {property.address}, {property.city}
                       </div>
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                        <span className="text-sm text-muted-foreground">Loyer mensuel</span>
-                        <span className="font-bold text-lg">{property.rent_amount.toLocaleString("fr-FR")} FCFA</span>
+                      <div className="mt-3">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${listingConfig[property.listing_type ?? "RENT"]?.color ?? "text-blue-600 bg-blue-50"}`}>
+                          {listingConfig[property.listing_type ?? "RENT"]?.label ?? "Location"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                        {(property.listing_type === "RENT" || property.listing_type === "BOTH" || !property.listing_type) && (
+                          <span className="text-sm font-bold">{property.rent_amount.toLocaleString("fr-FR")} <span className="text-muted-foreground font-normal">FCFA/mois</span></span>
+                        )}
+                        {property.listing_type === "SALE" && property.sale_price && (
+                          <span className="text-sm font-bold">{property.sale_price.toLocaleString("fr-FR")} <span className="text-muted-foreground font-normal">FCFA</span></span>
+                        )}
+                        {property.listing_type === "BOTH" && property.sale_price && (
+                          <span className="text-xs text-muted-foreground">Vente: {property.sale_price.toLocaleString("fr-FR")} FCFA</span>
+                        )}
                       </div>
                     </div>
                   </CardContent>

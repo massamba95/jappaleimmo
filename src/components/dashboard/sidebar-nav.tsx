@@ -18,6 +18,7 @@ import {
   LogOut,
   UsersRound,
   History,
+  UserSquare2,
 } from "lucide-react";
 import type { Permission } from "@/lib/permissions";
 
@@ -37,6 +38,7 @@ export function SidebarNav() {
   const navItems: { href: string; label: string; icon: typeof LayoutDashboard; permission: Permission | null }[] = [
     { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard, permission: null },
     { href: "/dashboard/properties", label: "Mes biens", icon: Home, permission: "properties:view" },
+    { href: "/dashboard/owners", label: "Propriétaires", icon: UserSquare2, permission: "owners:view" },
     { href: "/dashboard/tenants", label: "Locataires", icon: Users, permission: "tenants:view" },
     { href: "/dashboard/leases", label: "Baux", icon: FileText, permission: "leases:view" },
     { href: "/dashboard/payments", label: "Paiements", icon: CreditCard, permission: "payments:view" },
