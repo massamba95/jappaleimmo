@@ -7,6 +7,7 @@ import { getPlanLimits, getTrialDaysLeft } from "@/lib/plans";
 interface OrgData {
   orgId: string | null;
   orgName: string | null;
+  orgSlug: string | null;
   orgPlan: string | null;
   orgStatus: string | null;
   orgOwnerId: string | null;
@@ -24,6 +25,7 @@ export function useOrg(): OrgData {
   const [data, setData] = useState<OrgData>({
     orgId: null,
     orgName: null,
+    orgSlug: null,
     orgPlan: null,
     orgStatus: null,
     orgOwnerId: null,
@@ -52,7 +54,7 @@ export function useOrg(): OrgData {
       // D'abord chercher un membership ACTIVE
       const { data: memberships } = await supabase
         .from("memberships")
-        .select("org_id, role, status, organizations(name, plan, status, trial_ends_at, owner_id)")
+        .select("org_id, role, status, organizations(name, slug, plan, status, trial_ends_at, owner_id)")
         .eq("user_id", user.id)
         .eq("status", "ACTIVE")
         .order("created_at", { ascending: false })
@@ -64,7 +66,7 @@ export function useOrg(): OrgData {
       if (!membership) {
         const { data: pendingMemberships } = await supabase
           .from("memberships")
-          .select("org_id, role, status, organizations(name, plan, status, trial_ends_at, owner_id)")
+          .select("org_id, role, status, organizations(name, slug, plan, status, trial_ends_at, owner_id)")
           .eq("user_id", user.id)
           .eq("status", "PENDING")
           .order("created_at", { ascending: false })
@@ -80,6 +82,7 @@ export function useOrg(): OrgData {
         setData({
           orgId: membership.org_id,
           orgName: org?.name ?? null,
+          orgSlug: org?.slug ?? null,
           orgPlan: plan,
           orgStatus: org?.status ?? null,
           orgOwnerId: org?.owner_id ?? null,

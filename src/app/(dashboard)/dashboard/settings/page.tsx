@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { ExternalLink } from "lucide-react";
 
 export default function SettingsPage() {
-  const { orgId, orgName, role } = useOrg();
+  const { orgId, orgName, orgSlug, role } = useOrg();
   const [loading, setLoading] = useState(false);
   const [orgLoading, setOrgLoading] = useState(false);
   const [pwdLoading, setPwdLoading] = useState(false);
@@ -184,7 +185,7 @@ export default function SettingsPage() {
       {role === "ADMIN" && (
         <Card className="mt-6 max-w-2xl">
           <CardHeader><CardTitle>Organisation</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <form onSubmit={handleOrgSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="org_name">Nom de l&apos;organisation</Label>
@@ -192,6 +193,23 @@ export default function SettingsPage() {
               </div>
               <Button type="submit" disabled={orgLoading}>{orgLoading ? "Mise a jour..." : "Enregistrer"}</Button>
             </form>
+            {orgSlug && (
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium mb-2">Vitrine publique</p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Partagez ce lien pour que vos clients voient vos biens disponibles.
+                </p>
+                <a
+                  href={`/agences/${orgSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-primary hover:underline font-medium"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  /agences/{orgSlug}
+                </a>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
