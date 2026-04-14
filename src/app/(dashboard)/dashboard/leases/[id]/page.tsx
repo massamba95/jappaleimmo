@@ -119,6 +119,7 @@ export default function LeaseDetailPage() {
       dueDate: payment.due_date,
       paidDate: payment.paid_date,
       method: payment.method,
+      leaseNumber: contratNum,
       rentAmount: lease.rent_amount,
       charges: lease.properties?.charges ?? 0,
       tenantFirstName: lease.tenants?.first_name ?? "",

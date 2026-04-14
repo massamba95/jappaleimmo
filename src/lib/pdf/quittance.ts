@@ -22,6 +22,7 @@ export interface QuittanceData {
   paidDate: string | null;
   method: string;
   // Bail
+  leaseNumber: string;
   rentAmount: number;
   charges: number;
   // Locataire
@@ -211,6 +212,14 @@ export function generateQuittancePDF(data: QuittanceData): void {
   doc.setTextColor(...dark);
   doc.setFont("helvetica", "bold");
   doc.text(`QUI-${data.paymentId.slice(0, 8).toUpperCase()}`, margin + 38, y);
+  y += 6;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...muted);
+  doc.text(`N° Contrat : `, margin, y);
+  doc.setTextColor(...dark);
+  doc.setFont("helvetica", "bold");
+  doc.text(data.leaseNumber, margin + 38, y);
   y += 14;
 
   // ── Attestation ─────────────────────────────────────────

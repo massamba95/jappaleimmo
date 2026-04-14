@@ -33,6 +33,8 @@ interface Payment {
   method: string;
   status: string;
   leases: {
+    id: string;
+    created_at: string;
     rent_amount: number;
     tenants: { first_name: string; last_name: string; phone: string } | null;
     properties: { title: string; address: string; city: string; charges: number; org_id: string } | null;
@@ -73,7 +75,7 @@ export default function PaymentsPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("payments")
-      .select("*, leases(rent_amount, tenants(first_name, last_name, phone), properties!inner(title, address, city, charges, org_id))")
+      .select("*, leases(id, created_at, rent_amount, tenants(first_name, last_name, phone), properties!inner(title, address, city, charges, org_id))")
       .eq("leases.properties.org_id", orgId!)
       .order("created_at", { ascending: false });
 
@@ -145,6 +147,11 @@ export default function PaymentsPage() {
     loadPayments();
   }
 
+  function leaseNumber(id: string, createdAt: string): string {
+    const year = new Date(createdAt).getFullYear();
+    return `BAI-${year}-${id.slice(0, 6).toUpperCase()}`;
+  }
+
   function handleDownloadQuittance(payment: Payment) {
     const lease = payment.leases;
     if (!lease) return;
@@ -155,6 +162,7 @@ export default function PaymentsPage() {
       dueDate: payment.due_date,
       paidDate: payment.paid_date,
       method: payment.method,
+      leaseNumber: leaseNumber(lease.id, lease.created_at),
       rentAmount: lease.rent_amount,
       charges: lease.properties?.charges ?? 0,
       tenantFirstName: lease.tenants?.first_name ?? "",
