@@ -27,21 +27,22 @@ const ALL_VIEW_CREATE_EDIT: Permission[] = [
   "tenants:create", "tenants:edit", "tenants:view",
   "leases:create", "leases:edit", "leases:view",
   "payments:create", "payments:view",
+  "owners:view", "owners:create",
 ];
 
 const DELETE_PERMS: Permission[] = [
   "properties:delete", "tenants:delete", "leases:delete",
 ];
 
-const OWNER_PERMS: Permission[] = [
-  "owners:view", "owners:create", "owners:edit", "owners:delete",
+const OWNER_ADMIN_PERMS: Permission[] = [
+  "owners:edit", "owners:delete",
 ];
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
     ...ALL_VIEW_CREATE_EDIT,
     ...DELETE_PERMS,
-    ...OWNER_PERMS,
+    ...OWNER_ADMIN_PERMS,
     "team:manage", "settings:org",
   ],
   MANAGER: [
