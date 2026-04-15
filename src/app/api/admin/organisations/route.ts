@@ -25,9 +25,14 @@ export async function GET() {
 
   const orgIds = orgs.map((o) => o.id);
 
-  const [membershipsRes, propertiesRes] = await Promise.all([
+  const [membershipsRes, propertiesRes, subsRes] = await Promise.all([
     admin.from("memberships").select("org_id").in("org_id", orgIds).eq("status", "ACTIVE"),
     admin.from("properties").select("org_id").in("org_id", orgIds),
+    admin.from("subscriptions")
+      .select("org_id, current_period_end")
+      .in("org_id", orgIds)
+      .eq("status", "ACTIVE")
+      .order("current_period_end", { ascending: false }),
   ]);
 
   const memberCounts = (membershipsRes.data ?? []).reduce((acc: Record<string, number>, m) => {
@@ -40,11 +45,18 @@ export async function GET() {
     return acc;
   }, {});
 
+  // Garder uniquement la subscription la plus récente par org
+  const subsByOrg = (subsRes.data ?? []).reduce((acc: Record<string, string>, s) => {
+    if (!acc[s.org_id]) acc[s.org_id] = s.current_period_end;
+    return acc;
+  }, {});
+
   return NextResponse.json(
     orgs.map((o) => ({
       ...o,
       member_count: memberCounts[o.id] ?? 0,
       property_count: propCounts[o.id] ?? 0,
+      subscription_end: subsByOrg[o.id] ?? null,
     }))
   );
 }

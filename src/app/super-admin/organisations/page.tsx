@@ -12,7 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Building2, Users, Home, AlertTriangle } from "lucide-react";
+import { Building2, Users, Home, AlertTriangle, Clock } from "lucide-react";
+
+function getDaysLeft(dateStr: string): number {
+  const diff = new Date(dateStr).getTime() - Date.now();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
 import { toast } from "sonner";
 
 interface Org {
@@ -28,6 +33,7 @@ interface Org {
   created_at: string;
   member_count: number;
   property_count: number;
+  subscription_end: string | null;
 }
 
 const planLabels: Record<string, string> = {
@@ -147,7 +153,7 @@ export default function OrganisationsPage() {
                   <TableHead className="text-center">
                     <span className="flex items-center justify-center gap-1"><Home className="h-4 w-4" />Biens</span>
                   </TableHead>
-                  <TableHead>Créée le</TableHead>
+                  <TableHead>Expiration</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -187,18 +193,42 @@ export default function OrganisationsPage() {
                         {org.property_count}/{org.max_properties}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(org.created_at).toLocaleDateString("fr-FR")}
-                      {org.status === "TRIAL" && org.trial_ends_at && (
-                        <p className="text-xs text-blue-600">
-                          Essai jusqu&apos;au {new Date(org.trial_ends_at).toLocaleDateString("fr-FR")}
-                        </p>
-                      )}
-                      {org.status === "BLOCKED" && org.blocked_at && (
-                        <p className="text-xs text-red-600 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Bloqué le {new Date(org.blocked_at).toLocaleDateString("fr-FR")}
-                        </p>
+                    <TableCell className="text-sm">
+                      {org.subscription_end ? (() => {
+                        const days = getDaysLeft(org.subscription_end);
+                        if (days < 0) return (
+                          <span className="text-red-600 font-medium flex items-center gap-1">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            Expiré
+                          </span>
+                        );
+                        if (days <= 7) return (
+                          <div>
+                            <span className="text-orange-600 font-medium flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              {days}j restant{days > 1 ? "s" : ""}
+                            </span>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(org.subscription_end).toLocaleDateString("fr-FR")}
+                            </p>
+                          </div>
+                        );
+                        return (
+                          <div>
+                            <span className="text-green-600 font-medium">{days}j restants</span>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(org.subscription_end).toLocaleDateString("fr-FR")}
+                            </p>
+                          </div>
+                        );
+                      })() : (
+                        <span className="text-muted-foreground text-xs">
+                          {org.status === "TRIAL"
+                            ? org.trial_ends_at
+                              ? `Essai → ${new Date(org.trial_ends_at).toLocaleDateString("fr-FR")}`
+                              : "Essai"
+                            : "—"}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>

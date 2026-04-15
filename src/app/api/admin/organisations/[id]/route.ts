@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getPlanLimits } from "@/lib/plans";
+import { getPlanLimits, PLANS } from "@/lib/plans";
 
 export async function PATCH(
   request: NextRequest,
@@ -43,6 +43,48 @@ export async function PATCH(
     .eq("id", id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Quand on active une org, créer/renouveler la subscription (30 jours)
+  if (body.status === "ACTIVE") {
+    const { data: org } = await admin
+      .from("organizations")
+      .select("plan")
+      .eq("id", id)
+      .single();
+
+    const plan = (body.plan ?? org?.plan ?? "FREE") as keyof typeof PLANS;
+    const amount = PLANS[plan]?.price ?? 0;
+    const today = new Date();
+    const periodEnd = new Date(today);
+    periodEnd.setDate(periodEnd.getDate() + 30);
+
+    // Annuler les subscriptions actives existantes
+    await admin
+      .from("subscriptions")
+      .update({ status: "CANCELLED" })
+      .eq("org_id", id)
+      .eq("status", "ACTIVE");
+
+    // Créer la nouvelle subscription
+    await admin.from("subscriptions").insert({
+      org_id: id,
+      plan,
+      amount,
+      status: "ACTIVE",
+      payment_method: "MANUAL",
+      current_period_start: today.toISOString().split("T")[0],
+      current_period_end: periodEnd.toISOString().split("T")[0],
+    });
+  }
+
+  // Quand on bloque, annuler la subscription
+  if (body.status === "BLOCKED") {
+    await admin
+      .from("subscriptions")
+      .update({ status: "CANCELLED" })
+      .eq("org_id", id)
+      .eq("status", "ACTIVE");
+  }
 
   return NextResponse.json({ ok: true });
 }
