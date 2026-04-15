@@ -126,7 +126,7 @@ const pricing = [
       "Historique d'activite",
       "Support email",
     ],
-    cta: "Essai gratuit 14 jours",
+    cta: "Essai gratuit 1 mois",
     popular: true,
   },
   {
@@ -140,7 +140,7 @@ const pricing = [
       "Toutes les fonctionnalites Pro",
       "Support prioritaire",
     ],
-    cta: "Essai gratuit 14 jours",
+    cta: "Essai gratuit 1 mois",
     popular: false,
   },
   {
@@ -161,7 +161,7 @@ const pricing = [
 
 const stats = [
   { value: "100%", label: "En ligne, accessible partout" },
-  { value: "14j", label: "D'essai gratuit sans carte" },
+  { value: "1 mois", label: "D'essai gratuit sans carte" },
   { value: "PDF", label: "Quittances conformes en 1 clic" },
   { value: "0 FCFA", label: "Pour commencer aujourd'hui" },
 ];
@@ -227,7 +227,7 @@ export default function HomePage() {
             </a>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
-            Essai gratuit 14 jours · Aucune carte bancaire · Resiliable a tout moment
+            Essai gratuit 1 mois · Aucune carte bancaire · Resiliable a tout moment
           </p>
         </div>
       </section>

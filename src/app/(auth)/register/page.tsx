@@ -99,7 +99,7 @@ export default function RegisterPage() {
       const slug = generateSlug(formData.orgName) + "-" + Date.now().toString(36);
       const inviteCode = Math.random().toString(36).substring(2, 10).toUpperCase();
       const trialEnds = new Date();
-      trialEnds.setDate(trialEnds.getDate() + 14);
+      trialEnds.setDate(trialEnds.getDate() + 30);
 
       const { data: org, error: orgError } = await supabase
         .from("organizations")
