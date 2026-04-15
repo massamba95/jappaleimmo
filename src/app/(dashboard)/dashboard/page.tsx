@@ -71,7 +71,7 @@ export default function DashboardPage() {
           .order("due_date", { ascending: true }),
       ]);
 
-      const overdue = (overdueRes.data as OverduePayment[]) ?? [];
+      const overdue = (overdueRes.data as unknown as OverduePayment[]) ?? [];
       const pendingAmount = overdue.reduce((sum, p) => {
         const rent = p.leases?.rent_amount ?? p.amount;
         const paid = p.status === "PARTIAL" ? p.amount : 0;
