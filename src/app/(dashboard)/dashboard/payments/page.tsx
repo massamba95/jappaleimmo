@@ -20,7 +20,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, CreditCard, CheckCircle2, FileDown } from "lucide-react";
+import { Plus, CreditCard, CheckCircle2, FileDown, MessageCircle } from "lucide-react";
+
+function buildWhatsAppUrl(phone: string, message: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const intl = digits.startsWith("221") ? digits : `221${digits}`;
+  return `https://wa.me/${intl}?text=${encodeURIComponent(message)}`;
+}
+
+function rappelMessage(payment: Payment, orgName: string): string {
+  const tenant = payment.leases?.tenants;
+  const property = payment.leases?.properties;
+  const name = `${tenant?.first_name ?? ""} ${tenant?.last_name ?? ""}`.trim();
+  const date = new Date(payment.due_date).toLocaleDateString("fr-FR");
+  const amount = (payment.leases?.rent_amount ?? payment.amount).toLocaleString("fr-FR");
+  return `Bonjour ${name},\n\nNous vous rappelons que votre loyer de ${amount} FCFA pour le bien "${property?.title ?? ""}" était dû le ${date}.\n\nMerci de régulariser votre situation au plus tôt.\n\n${orgName}`;
+}
 import { toast } from "sonner";
 import { generateQuittancePDF } from "@/lib/pdf/quittance";
 
@@ -293,6 +308,21 @@ export default function PaymentsPage() {
                         )}
                       </div>
                     )}
+                    {["PENDING", "LATE", "PARTIAL"].includes(payment.status) && tenant?.phone && (
+                      <div className="mt-3 pt-3 border-t">
+                        <a
+                          href={buildWhatsAppUrl(tenant.phone, rappelMessage(payment, orgName ?? "Jappalé Immo"))}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block"
+                        >
+                          <Button size="sm" variant="outline" className="w-full gap-2 text-green-700 border-green-300">
+                            <MessageCircle className="h-4 w-4" />
+                            Envoyer un rappel WhatsApp
+                          </Button>
+                        </a>
+                      </div>
+                    )}
                     {payment.status === "PAID" && (
                       <div className="mt-3 pt-3 border-t">
                         <Button
@@ -382,6 +412,18 @@ export default function PaymentsPage() {
                                   Completer
                                 </Button>
                               )
+                            )}
+                            {["PENDING", "LATE", "PARTIAL"].includes(payment.status) && tenant?.phone && (
+                              <a
+                                href={buildWhatsAppUrl(tenant.phone, rappelMessage(payment, orgName ?? "Jappalé Immo"))}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button size="sm" variant="outline" className="gap-1.5 text-green-700 border-green-300 hover:bg-green-50">
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                  Rappel
+                                </Button>
+                              </a>
                             )}
                             {payment.status === "PAID" && (
                               <Button
