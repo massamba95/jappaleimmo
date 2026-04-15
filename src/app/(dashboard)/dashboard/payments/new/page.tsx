@@ -25,7 +25,7 @@ export default function NewPaymentPage() {
   const [loading, setLoading] = useState(false);
   const [leases, setLeases] = useState<LeaseOption[]>([]);
   const [selectedLease, setSelectedLease] = useState<LeaseOption | null>(null);
-  const [paymentType, setPaymentType] = useState<"full" | "partial" | "advance">("full");
+  const [paymentType, setPaymentType] = useState<"full" | "partial" | "advance" | "pending">("full");
   const [advanceMonths, setAdvanceMonths] = useState(1);
   const [formData, setFormData] = useState({
     lease_id: "",
@@ -64,7 +64,7 @@ export default function NewPaymentPage() {
     setAdvanceMonths(1);
   }
 
-  function handleTypeChange(type: "full" | "partial" | "advance") {
+  function handleTypeChange(type: "full" | "partial" | "advance" | "pending") {
     setPaymentType(type);
     if (!selectedLease) return;
 
@@ -74,6 +74,8 @@ export default function NewPaymentPage() {
       setFormData((prev) => ({ ...prev, amount: "" }));
     } else if (type === "advance") {
       setFormData((prev) => ({ ...prev, amount: (selectedLease.rent_amount * advanceMonths).toString() }));
+    } else if (type === "pending") {
+      setFormData((prev) => ({ ...prev, amount: selectedLease.rent_amount.toString() }));
     }
   }
 
@@ -95,6 +97,40 @@ export default function NewPaymentPage() {
     const supabase = createClient();
     const amount = parseInt(formData.amount);
     const rentAmount = selectedLease?.rent_amount ?? 0;
+
+    // Paiement attendu (PENDING) — pas encore recu
+    if (paymentType === "pending") {
+      const { error } = await supabase.from("payments").insert({
+        lease_id: formData.lease_id,
+        amount: amount,
+        due_date: formData.due_date,
+        paid_date: null,
+        method: formData.method,
+        status: "PENDING",
+      });
+
+      if (error) {
+        toast.error("Erreur lors de l'enregistrement.");
+        setLoading(false);
+        return;
+      }
+
+      if (orgId && userId) {
+        await logActivity({
+          orgId, userId,
+          userName: userName ?? "Utilisateur",
+          action: "CREATE",
+          entityType: "PAYMENT",
+          entityName: `${selectedLease?.tenants?.first_name ?? ""} ${selectedLease?.tenants?.last_name ?? ""}`,
+          details: `Paiement attendu - ${amount.toLocaleString("fr-FR")} FCFA - echeance ${formData.due_date}`,
+        });
+      }
+
+      toast.success("Paiement attendu enregistre !");
+      router.push("/dashboard/payments");
+      router.refresh();
+      return;
+    }
 
     // Determiner le statut
     let status = "PAID";
@@ -207,7 +243,7 @@ export default function NewPaymentPage() {
             {selectedLease && (
               <div className="space-y-2">
                 <Label>Type de paiement</Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <button
                     type="button"
                     className={`p-3 rounded-lg border text-sm font-medium text-center transition-colors ${paymentType === "full" ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"}`}
@@ -232,6 +268,14 @@ export default function NewPaymentPage() {
                     Avance
                     <p className="text-xs mt-1 opacity-75">Plusieurs mois</p>
                   </button>
+                  <button
+                    type="button"
+                    className={`p-3 rounded-lg border text-sm font-medium text-center transition-colors ${paymentType === "pending" ? "bg-orange-500 text-white border-orange-500" : "hover:bg-muted"}`}
+                    onClick={() => handleTypeChange("pending")}
+                  >
+                    Attendu
+                    <p className="text-xs mt-1 opacity-75">Non encore recu</p>
+                  </button>
                 </div>
               </div>
             )}
@@ -255,6 +299,14 @@ export default function NewPaymentPage() {
                 <p className="text-sm text-muted-foreground">
                   Total : <strong>{(selectedLease.rent_amount * advanceMonths).toLocaleString("fr-FR")} FCFA</strong> ({advanceMonths} x {selectedLease.rent_amount.toLocaleString("fr-FR")})
                 </p>
+              </div>
+            )}
+
+            {/* Info paiement attendu */}
+            {paymentType === "pending" && selectedLease && (
+              <div className="flex items-start gap-2 bg-orange-50 text-orange-700 p-3 rounded-lg text-sm">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>Ce paiement sera marque comme <strong>en attente</strong>. Il apparaitra dans les alertes du tableau de bord si la date d&apos;echeance est depassee.</span>
               </div>
             )}
 
@@ -307,7 +359,7 @@ export default function NewPaymentPage() {
 
             <div className="flex gap-4">
               <Button type="submit" disabled={loading}>
-                {loading ? "Enregistrement..." : paymentType === "advance" ? `Enregistrer l'avance de ${advanceMonths} mois` : "Enregistrer le paiement"}
+                {loading ? "Enregistrement..." : paymentType === "advance" ? `Enregistrer l'avance de ${advanceMonths} mois` : paymentType === "pending" ? "Enregistrer le paiement attendu" : "Enregistrer le paiement"}
               </Button>
               <Link href="/dashboard/payments">
                 <Button type="button" variant="outline">Annuler</Button>
