@@ -60,6 +60,7 @@ export default function PropertiesPage() {
   const canCreate = hasPermission(role, "properties:create");
   const [properties, setProperties] = useState<Property[]>([]);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<"all" | "RENT" | "SALE" | "SOLD">("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,7 +80,14 @@ export default function PropertiesPage() {
     load();
   }, [orgId]);
 
-  const filtered = properties.filter((p) => {
+  const tabFiltered = properties.filter((p) => {
+    if (activeTab === "SOLD") return p.status === "SOLD";
+    if (activeTab === "RENT") return p.listing_type === "RENT" && p.status !== "SOLD";
+    if (activeTab === "SALE") return (p.listing_type === "SALE" || p.listing_type === "BOTH") && p.status !== "SOLD";
+    return true;
+  });
+
+  const filtered = tabFiltered.filter((p) => {
     const q = search.toLowerCase();
     return (
       p.title.toLowerCase().includes(q) ||
@@ -108,7 +116,29 @@ export default function PropertiesPage() {
       </div>
 
       {properties.length > 0 && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
+          <div className="flex gap-1 border-b">
+            {(["all", "RENT", "SALE", "SOLD"] as const).map((tab) => {
+              const labels = { all: "Tous", RENT: "Location", SALE: "Vente", SOLD: "Vendus" };
+              const count = tab === "all" ? properties.length
+                : tab === "SOLD" ? properties.filter((p) => p.status === "SOLD").length
+                : tab === "RENT" ? properties.filter((p) => p.listing_type === "RENT" && p.status !== "SOLD").length
+                : properties.filter((p) => (p.listing_type === "SALE" || p.listing_type === "BOTH") && p.status !== "SOLD").length;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {labels[tab]} <span className="ml-1 text-xs opacity-70">({count})</span>
+                </button>
+              );
+            })}
+          </div>
           <SearchBar value={search} onChange={setSearch} placeholder="Rechercher un bien..." />
         </div>
       )}

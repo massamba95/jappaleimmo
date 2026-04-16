@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/dashboard/delete-button";
-import { ArrowLeft, MapPin, Home, Ruler, DoorOpen, Pencil, Share2, MessageCircle, Copy, UserSquare2, Phone, Mail } from "lucide-react";
+import { ArrowLeft, MapPin, Home, Ruler, DoorOpen, Pencil, Share2, MessageCircle, Copy, UserSquare2, Phone, Mail, CheckCircle } from "lucide-react";
 import { generateWhatsAppMessage, getWhatsAppShareUrl, generateFacebookPost } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
@@ -48,10 +48,17 @@ const typeLabels: Record<string, string> = {
   LAND: "Terrain",
 };
 
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" }> = {
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   AVAILABLE: { label: "Disponible", variant: "secondary" },
   OCCUPIED: { label: "Occupe", variant: "default" },
   MAINTENANCE: { label: "En travaux", variant: "destructive" },
+  SOLD: { label: "Vendu", variant: "outline" },
+};
+
+const listingConfig: Record<string, { label: string; color: string }> = {
+  RENT: { label: "Location", color: "text-blue-600 bg-blue-50" },
+  SALE: { label: "Vente", color: "text-orange-600 bg-orange-50" },
+  BOTH: { label: "Location + Vente", color: "text-purple-600 bg-purple-50" },
 };
 
 export default function PropertyDetailPage() {
@@ -64,6 +71,7 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [leases, setLeases] = useState<LeaseWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingSold, setMarkingSold] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -88,6 +96,15 @@ export default function PropertyDetailPage() {
     load();
   }, [id]);
 
+  async function handleMarkSold() {
+    setMarkingSold(true);
+    const supabase = createClient();
+    await supabase.from("properties").update({ status: "SOLD" }).eq("id", id);
+    setProperty((p) => p ? { ...p, status: "SOLD" } : p);
+    setMarkingSold(false);
+    toast.success("Bien marqué comme vendu");
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>;
   }
@@ -97,6 +114,7 @@ export default function PropertyDetailPage() {
   }
 
   const status = statusConfig[property.status];
+  const listing = listingConfig[property.listing_type] ?? listingConfig.RENT;
 
   return (
     <div>
@@ -104,13 +122,29 @@ export default function PropertyDetailPage() {
         <ArrowLeft className="h-4 w-4" />Retour aux biens
       </Link>
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">{property.title}</h1>
-          <p className="text-muted-foreground mt-1">{typeLabels[property.type]}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-muted-foreground">{typeLabels[property.type]}</p>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${listing.color}`}>
+              {listing.label}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <Badge variant={status?.variant} className="text-sm px-3 py-1">{status?.label}</Badge>
+          {canEdit && property.status !== "SOLD" && (property.listing_type === "SALE" || property.listing_type === "BOTH") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkSold}
+              disabled={markingSold}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Marquer comme vendu
+            </Button>
+          )}
           {canEdit && (
             <Link href={`/dashboard/properties/${id}/edit`}>
               <Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" />Modifier</Button>
@@ -198,15 +232,26 @@ export default function PropertyDetailPage() {
                 </div>
               </div>
             )}
-            <div className="flex items-center gap-3">
-              <Home className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Loyer + charges</p>
-                <p className="font-medium">
-                  {property.rent_amount.toLocaleString("fr-FR")} + {property.charges.toLocaleString("fr-FR")} = {(property.rent_amount + property.charges).toLocaleString("fr-FR")} FCFA/mois
-                </p>
+            {(property.listing_type === "RENT" || property.listing_type === "BOTH" || !property.listing_type) && (
+              <div className="flex items-center gap-3">
+                <Home className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Loyer + charges</p>
+                  <p className="font-medium">
+                    {property.rent_amount.toLocaleString("fr-FR")} + {property.charges.toLocaleString("fr-FR")} = {(property.rent_amount + property.charges).toLocaleString("fr-FR")} FCFA/mois
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+            {(property.listing_type === "SALE" || property.listing_type === "BOTH") && property.sale_price && (
+              <div className="flex items-center gap-3">
+                <Home className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Prix de vente</p>
+                  <p className="font-medium">{property.sale_price.toLocaleString("fr-FR")} FCFA</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

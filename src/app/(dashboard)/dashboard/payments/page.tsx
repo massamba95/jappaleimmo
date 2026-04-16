@@ -80,6 +80,11 @@ export default function PaymentsPage() {
   const [completing, setCompleting] = useState<string | null>(null);
   const [completeAmount, setCompleteAmount] = useState("");
   const [completeMethod, setCompleteMethod] = useState("CASH");
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [markMethod, setMarkMethod] = useState("CASH");
+  const [partialPending, setPartialPending] = useState<string | null>(null);
+  const [partialAmount, setPartialAmount] = useState("");
+  const [partialMethod, setPartialMethod] = useState("CASH");
 
   useEffect(() => {
     if (!orgId) return;
@@ -159,6 +164,95 @@ export default function PaymentsPage() {
 
     toast.success("Complement enregistre !");
     setCompleting(null);
+    loadPayments();
+  }
+
+  async function handleMarkPaid(payment: Payment) {
+    if (markingPaid !== payment.id) {
+      setMarkingPaid(payment.id);
+      setMarkMethod("CASH");
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        status: "PAID",
+        paid_date: new Date().toISOString().split("T")[0],
+        method: markMethod,
+      })
+      .eq("id", payment.id);
+
+    if (error) {
+      toast.error("Erreur lors de l'enregistrement.");
+      return;
+    }
+
+    if (orgId && userId) {
+      await logActivity({
+        orgId, userId,
+        userName: userName ?? "Utilisateur",
+        action: "UPDATE",
+        entityType: "PAYMENT",
+        entityName: `${payment.leases?.tenants?.first_name ?? ""} ${payment.leases?.tenants?.last_name ?? ""}`,
+        details: `Paiement marque comme paye - ${payment.amount.toLocaleString("fr-FR")} FCFA - ${markMethod}`,
+      });
+    }
+
+    toast.success("Paiement marque comme paye !");
+    setMarkingPaid(null);
+    loadPayments();
+  }
+
+  async function handlePartialPending(payment: Payment) {
+    if (partialPending !== payment.id) {
+      setPartialPending(payment.id);
+      setPartialAmount("");
+      setPartialMethod("CASH");
+      return;
+    }
+
+    const amount = parseInt(partialAmount);
+    const rentAmount = payment.leases?.rent_amount ?? 0;
+    if (!amount || amount <= 0) {
+      toast.error("Montant invalide.");
+      return;
+    }
+    if (amount >= rentAmount) {
+      toast.error("Montant superieur ou egal au loyer. Utilisez 'Marquer comme paye'.");
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("payments")
+      .update({
+        status: "PARTIAL",
+        amount,
+        paid_date: new Date().toISOString().split("T")[0],
+        method: partialMethod,
+      })
+      .eq("id", payment.id);
+
+    if (error) {
+      toast.error("Erreur lors de l'enregistrement.");
+      return;
+    }
+
+    if (orgId && userId) {
+      await logActivity({
+        orgId, userId,
+        userName: userName ?? "Utilisateur",
+        action: "UPDATE",
+        entityType: "PAYMENT",
+        entityName: `${payment.leases?.tenants?.first_name ?? ""} ${payment.leases?.tenants?.last_name ?? ""}`,
+        details: `Paiement partiel - ${amount.toLocaleString("fr-FR")} FCFA (reste: ${(rentAmount - amount).toLocaleString("fr-FR")} FCFA)`,
+      });
+    }
+
+    toast.success("Paiement partiel enregistre !");
+    setPartialPending(null);
     loadPayments();
   }
 
@@ -308,6 +402,61 @@ export default function PaymentsPage() {
                         )}
                       </div>
                     )}
+                    {payment.status === "PENDING" && canCreate && (
+                      <div className="mt-3 pt-3 border-t space-y-2">
+                        {markingPaid === payment.id ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="h-9 rounded border border-input bg-background px-2 text-xs flex-1"
+                              value={markMethod}
+                              onChange={(e) => setMarkMethod(e.target.value)}
+                            >
+                              <option value="CASH">Especes</option>
+                              <option value="WAVE">Wave</option>
+                              <option value="ORANGE_MONEY">Orange Money</option>
+                              <option value="TRANSFER">Virement</option>
+                            </select>
+                            <Button size="sm" onClick={() => handleMarkPaid(payment)}>
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setMarkingPaid(null)}>x</Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" variant="outline" className="w-full" onClick={() => handleMarkPaid(payment)}>
+                            Marquer comme paye
+                          </Button>
+                        )}
+                        {partialPending === payment.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={partialAmount}
+                              onChange={(e) => setPartialAmount(e.target.value)}
+                              className="flex-1 h-9 text-sm"
+                              placeholder="Montant recu"
+                            />
+                            <select
+                              className="h-9 rounded border border-input bg-background px-2 text-xs"
+                              value={partialMethod}
+                              onChange={(e) => setPartialMethod(e.target.value)}
+                            >
+                              <option value="CASH">Especes</option>
+                              <option value="WAVE">Wave</option>
+                              <option value="ORANGE_MONEY">OM</option>
+                              <option value="TRANSFER">Virement</option>
+                            </select>
+                            <Button size="sm" onClick={() => handlePartialPending(payment)}>
+                              <CheckCircle2 className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => setPartialPending(null)}>x</Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" variant="outline" className="w-full" onClick={() => handlePartialPending(payment)}>
+                            Paiement partiel
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     {["PENDING", "LATE", "PARTIAL"].includes(payment.status) && tenant?.phone && (
                       <div className="mt-3 pt-3 border-t">
                         <a
@@ -382,6 +531,61 @@ export default function PaymentsPage() {
                         <TableCell><Badge variant={status?.variant}>{status?.label}</Badge></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            {payment.status === "PENDING" && canCreate && (
+                              <>
+                                {markingPaid === payment.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      className="h-8 rounded border border-input bg-background px-2 text-xs"
+                                      value={markMethod}
+                                      onChange={(e) => setMarkMethod(e.target.value)}
+                                    >
+                                      <option value="CASH">Especes</option>
+                                      <option value="WAVE">Wave</option>
+                                      <option value="ORANGE_MONEY">OM</option>
+                                      <option value="TRANSFER">Virement</option>
+                                    </select>
+                                    <Button size="sm" onClick={() => handleMarkPaid(payment)}>
+                                      <CheckCircle2 className="h-3 w-3" />
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => setMarkingPaid(null)}>x</Button>
+                                  </div>
+                                ) : (
+                                  <Button size="sm" variant="outline" onClick={() => handleMarkPaid(payment)}>
+                                    Marquer paye
+                                  </Button>
+                                )}
+                                {partialPending === payment.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      value={partialAmount}
+                                      onChange={(e) => setPartialAmount(e.target.value)}
+                                      className="w-24 h-8 text-sm"
+                                      placeholder="Montant"
+                                    />
+                                    <select
+                                      className="h-8 rounded border border-input bg-background px-2 text-xs"
+                                      value={partialMethod}
+                                      onChange={(e) => setPartialMethod(e.target.value)}
+                                    >
+                                      <option value="CASH">Especes</option>
+                                      <option value="WAVE">Wave</option>
+                                      <option value="ORANGE_MONEY">OM</option>
+                                      <option value="TRANSFER">Virement</option>
+                                    </select>
+                                    <Button size="sm" onClick={() => handlePartialPending(payment)}>
+                                      <CheckCircle2 className="h-3 w-3" />
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={() => setPartialPending(null)}>x</Button>
+                                  </div>
+                                ) : (
+                                  <Button size="sm" variant="outline" onClick={() => handlePartialPending(payment)}>
+                                    Partiel
+                                  </Button>
+                                )}
+                              </>
+                            )}
                             {payment.status === "PARTIAL" && canCreate && (
                               isCompleting ? (
                                 <div className="flex items-center gap-2">
