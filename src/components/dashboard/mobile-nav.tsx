@@ -24,6 +24,7 @@ import {
   X,
   UserSquare2,
   CalendarDays,
+  CreditCard as CreditCardIcon,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -53,7 +54,8 @@ export function MobileNav() {
     { href: "/dashboard/leases", label: "Baux", icon: FileText, permission: "leases:view" },
     { href: "/dashboard/activity", label: "Historique", icon: History, permission: "team:manage" },
     { href: "/dashboard/team", label: "Equipe", icon: UsersRound, permission: "team:manage" },
-    { href: "/dashboard/settings", label: "Parametres", icon: Settings, permission: null },
+    { href: "/dashboard/upgrade",  label: "Abonnement",  icon: CreditCardIcon, permission: null },
+    { href: "/dashboard/settings", label: "Parametres",  icon: Settings,       permission: null },
   ];
 
   const visibleMain = mainTabs.filter(

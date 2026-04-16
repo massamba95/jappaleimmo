@@ -11,11 +11,13 @@ import {
   LayoutDashboard,
   LogOut,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/super-admin", label: "Vue globale", icon: LayoutDashboard },
-  { href: "/super-admin/organisations", label: "Organisations", icon: Building2 },
+  { href: "/super-admin",               label: "Vue globale",    icon: LayoutDashboard },
+  { href: "/super-admin/organisations", label: "Organisations",  icon: Building2 },
+  { href: "/super-admin/abonnements",   label: "Abonnements",    icon: CreditCard },
 ];
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {

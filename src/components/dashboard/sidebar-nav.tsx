@@ -20,6 +20,7 @@ import {
   History,
   UserSquare2,
   CalendarDays,
+  CreditCard as CreditCardIcon,
 } from "lucide-react";
 import type { Permission } from "@/lib/permissions";
 
@@ -46,7 +47,8 @@ export function SidebarNav() {
     { href: "/dashboard/suivi", label: "Suivi mensuel", icon: CalendarDays, permission: "payments:view" },
     { href: "/dashboard/activity", label: "Historique", icon: History, permission: "team:manage" },
     { href: "/dashboard/team", label: "Equipe", icon: UsersRound, permission: "team:manage" },
-    { href: "/dashboard/settings", label: "Parametres", icon: Settings, permission: null },
+    { href: "/dashboard/upgrade",  label: "Mon abonnement", icon: CreditCardIcon, permission: null },
+    { href: "/dashboard/settings", label: "Parametres",     icon: Settings,       permission: null },
   ];
 
   const visibleItems = navItems.filter(
