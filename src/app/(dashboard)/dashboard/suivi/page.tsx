@@ -3,10 +3,11 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
+import { generateRapportPDF } from "@/lib/pdf/rapport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -41,7 +42,7 @@ const statusConfig: Record<SuiviStatus, { label: string; variant: "default" | "s
 };
 
 export default function SuiviPage() {
-  const { orgId } = useOrg();
+  const { orgId, orgName } = useOrg();
   const now = new Date();
   const [year, setYear]   = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth()); // 0-based
@@ -185,6 +186,19 @@ export default function SuiviPage() {
           <Button variant="outline" size="icon" onClick={nextMonth} disabled={isCurrentMonth}>
             <ChevronRight className="h-4 w-4" />
           </Button>
+          {data.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-2"
+              onClick={() =>
+                generateRapportPDF({ orgName: orgName ?? "Jappalé Immo", month, year, leases: data })
+              }
+            >
+              <FileDown className="h-4 w-4 mr-1" />
+              Exporter PDF
+            </Button>
+          )}
         </div>
       </div>
 

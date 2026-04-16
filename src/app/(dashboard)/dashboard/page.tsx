@@ -8,7 +8,15 @@ import { getPlanLimits } from "@/lib/plans";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building2, Users, AlertTriangle, Clock, MessageCircle } from "lucide-react";
+import { Building2, Users, AlertTriangle, Clock, MessageCircle, CalendarClock } from "lucide-react";
+
+interface ExpiringLease {
+  id: string;
+  end_date: string;
+  rent_amount: number;
+  properties: { title: string } | null;
+  tenants: { first_name: string; last_name: string; phone: string } | null;
+}
 
 interface OverduePayment {
   id: string;
@@ -47,6 +55,7 @@ export default function DashboardPage() {
     pendingCount: 0,
   });
   const [overduePayments, setOverduePayments] = useState<OverduePayment[]>([]);
+  const [expiringLeases, setExpiringLeases] = useState<ExpiringLease[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState("");
 
@@ -57,8 +66,11 @@ export default function DashboardPage() {
       const supabase = createClient();
       setUserName(hookUserName ?? "Utilisateur");
       const today = new Date().toISOString().split("T")[0];
+      const in30Days = new Date();
+      in30Days.setDate(in30Days.getDate() + 30);
+      const in30DaysStr = in30Days.toISOString().split("T")[0];
 
-      const [propRes, occRes, tenRes, overdueRes] = await Promise.all([
+      const [propRes, occRes, tenRes, overdueRes, expiringRes] = await Promise.all([
         supabase.from("properties").select("*", { count: "exact", head: true }).eq("org_id", orgId!),
         supabase.from("properties").select("*", { count: "exact", head: true }).eq("org_id", orgId!).eq("status", "OCCUPIED"),
         supabase.from("tenants").select("*", { count: "exact", head: true }).eq("org_id", orgId!),
@@ -69,9 +81,19 @@ export default function DashboardPage() {
           .in("status", ["PENDING", "LATE", "PARTIAL"])
           .lte("due_date", today)
           .order("due_date", { ascending: true }),
+        supabase
+          .from("leases")
+          .select("id, end_date, rent_amount, properties!inner(title, org_id), tenants(first_name, last_name, phone)")
+          .eq("status", "ACTIVE")
+          .eq("properties.org_id", orgId!)
+          .not("end_date", "is", null)
+          .gte("end_date", today)
+          .lte("end_date", in30DaysStr)
+          .order("end_date", { ascending: true }),
       ]);
 
       const overdue = (overdueRes.data as unknown as OverduePayment[]) ?? [];
+      setExpiringLeases((expiringRes.data as unknown as ExpiringLease[]) ?? []);
       const pendingAmount = overdue.reduce((sum, p) => {
         const rent = p.leases?.rent_amount ?? p.amount;
         const paid = p.status === "PARTIAL" ? p.amount : 0;
@@ -252,6 +274,57 @@ export default function DashboardPage() {
             <AlertTriangle className="h-4 w-4 text-green-600" />
           </div>
           <p className="text-sm text-green-700 font-medium">Tous les paiements sont a jour.</p>
+        </div>
+      )}
+
+      {/* Section baux expirant bientôt */}
+      {expiringLeases.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarClock className="h-5 w-5 text-orange-500" />
+            <h2 className="text-lg font-semibold">Baux expirant dans 30 jours</h2>
+            <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {expiringLeases.length}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {expiringLeases.map((lease) => {
+              const daysLeft = Math.ceil(
+                (new Date(lease.end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+              );
+              return (
+                <Card key={lease.id} className="border-orange-200 bg-orange-50/50">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold">
+                            {lease.tenants?.first_name} {lease.tenants?.last_name}
+                          </p>
+                          <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50">
+                            {daysLeft <= 0 ? "Expire aujourd'hui" : `J-${daysLeft}`}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">{lease.properties?.title}</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Expire le{" "}
+                          <span className="font-medium text-orange-700">
+                            {new Date(lease.end_date).toLocaleDateString("fr-FR", {
+                              day: "2-digit", month: "long", year: "numeric",
+                            })}
+                          </span>
+                          {" · "}{lease.rent_amount.toLocaleString("fr-FR")} FCFA/mois
+                        </p>
+                      </div>
+                      <Link href={`/dashboard/leases/${lease.id}`}>
+                        <Button size="sm" variant="outline">Voir bail</Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
