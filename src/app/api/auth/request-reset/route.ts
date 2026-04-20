@@ -13,6 +13,10 @@ export async function POST(req: Request) {
     },
   });
 
+  if (error) {
+    console.error("[request-reset] generateLink error:", error.message, "email:", email);
+  }
+
   if (!error && data?.properties?.action_link) {
     const link = data.properties.action_link;
     const html = `
@@ -45,7 +49,8 @@ export async function POST(req: Request) {
 </body>
 </html>`;
 
-    await fetch("https://api.resend.com/emails", {
+    console.log("[request-reset] Sending email to:", email);
+    const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
@@ -58,6 +63,12 @@ export async function POST(req: Request) {
         html,
       }),
     });
+    if (!resendRes.ok) {
+      const resendErr = await resendRes.text();
+      console.error("[request-reset] Resend error:", resendRes.status, resendErr);
+    } else {
+      console.log("[request-reset] Email sent successfully to:", email);
+    }
   }
 
   // Toujours retourner success pour ne pas révéler si l'email existe
