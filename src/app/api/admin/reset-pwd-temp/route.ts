@@ -4,14 +4,22 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // ENDPOINT TEMPORAIRE — à supprimer après usage
 export async function GET() {
   const supabase = createAdminClient();
-  const { error } = await supabase.auth.admin.updateUserById(
-    "c3c65c82-9529-4a9b-bdb6-3908d0c1d049",
-    { password: "Education2019." }
-  );
 
-  if (error) {
-    return NextResponse.json({ error: error.message, status: error.status, cause: String(error.cause ?? "") }, { status: 500 });
+  // Test: lister les users pour vérifier que l'admin client fonctionne
+  const { data: list, error: listErr } = await supabase.auth.admin.listUsers();
+  if (listErr) {
+    return NextResponse.json({ step: "listUsers", error: listErr.message, status: listErr.status }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, message: "Mot de passe mis à jour" });
+  const user = list.users.find(u => u.email === "diopmassamba78@gmail.com");
+  if (!user) {
+    return NextResponse.json({ step: "findUser", error: "User not found", emails: list.users.map(u => u.email) });
+  }
+
+  const { error } = await supabase.auth.admin.updateUserById(user.id, { password: "Education2019." });
+  if (error) {
+    return NextResponse.json({ step: "updateUser", error: error.message, userId: user.id }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, message: "Mot de passe mis à jour", userId: user.id });
 }
