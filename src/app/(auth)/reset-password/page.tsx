@@ -21,25 +21,41 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    const code = new URLSearchParams(window.location.search).get("code");
 
+    // Cas 1 : PKCE flow — ?code= dans l'URL
+    const code = new URLSearchParams(window.location.search).get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) {
-          setError("Lien expiré ou invalide. Demandez un nouveau lien.");
-        } else {
-          setReady(true);
-        }
+        if (error) setError("Lien expiré ou invalide.");
+        else setReady(true);
       });
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setReady(true);
-        } else {
-          setError("Lien invalide. Demandez un nouveau lien de réinitialisation.");
-        }
-      });
+      return;
     }
+
+    // Cas 2 : Implicit flow — #access_token= dans le hash (lien généré côté serveur)
+    const hash = window.location.hash;
+    if (hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.slice(1));
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token") ?? "";
+      if (access_token) {
+        supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
+          if (error) {
+            setError("Lien expiré ou invalide.");
+          } else {
+            window.history.replaceState(null, "", window.location.pathname);
+            setReady(true);
+          }
+        });
+        return;
+      }
+    }
+
+    // Cas 3 : session déjà établie
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+      else setError("Lien invalide. Demandez un nouveau lien.");
+    });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -102,13 +118,11 @@ export default function ResetPasswordPage() {
               {error && (
                 <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
                   {error}
-                  {error.includes("invalide") && (
-                    <div className="mt-2">
-                      <Link href="/forgot-password" className="underline font-medium">
-                        Demander un nouveau lien →
-                      </Link>
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <Link href="/forgot-password" className="underline font-medium">
+                      Demander un nouveau lien →
+                    </Link>
+                  </div>
                 </div>
               )}
               {!error && !ready && (

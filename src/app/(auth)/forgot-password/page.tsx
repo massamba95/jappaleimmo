@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,16 +27,11 @@ function ForgotPasswordForm() {
     setError("");
     setLoading(true);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `https://jappaleimmo.com/reset-password`,
+    await fetch("/api/auth/request-reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
     });
-
-    if (error) {
-      setError("Erreur lors de l'envoi. Vérifiez votre email.");
-      setLoading(false);
-      return;
-    }
 
     setSent(true);
     setLoading(false);
