@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DeleteButton } from "@/components/dashboard/delete-button";
-import { ArrowLeft, MapPin, Home, Ruler, DoorOpen, Pencil, Share2, MessageCircle, Copy, UserSquare2, Phone, Mail, CheckCircle } from "lucide-react";
+import { ArrowLeft, MapPin, Home, Ruler, DoorOpen, Pencil, Share2, MessageCircle, Copy, UserSquare2, Phone, Mail, CheckCircle, Building2 } from "lucide-react";
 import { generateWhatsAppMessage, getWhatsAppShareUrl, generateFacebookPost } from "@/lib/whatsapp";
 import { toast } from "sonner";
 
@@ -29,6 +29,8 @@ interface Property {
   status: string;
   photos: string[];
   owner_id: string | null;
+  parent_id: string | null;
+  parent: { id: string; title: string } | null;
   owners: { id: string; first_name: string; last_name: string; phone: string; email: string | null } | null;
 }
 
@@ -79,7 +81,7 @@ export default function PropertyDetailPage() {
 
       const { data: prop } = await supabase
         .from("properties")
-        .select("*, owners(id, first_name, last_name, phone, email)")
+        .select("*, owners(id, first_name, last_name, phone, email), parent:parent_id(id, title)")
         .eq("id", id)
         .single();
 
@@ -207,6 +209,17 @@ export default function PropertyDetailPage() {
         <Card>
           <CardHeader><CardTitle>Informations</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            {property.parent && (
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Résidence</p>
+                  <Link href={`/dashboard/properties/${property.parent.id}`} className="font-medium text-primary hover:underline">
+                    {property.parent.title}
+                  </Link>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <MapPin className="h-5 w-5 text-muted-foreground" />
               <div>

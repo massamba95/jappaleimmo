@@ -24,6 +24,7 @@ interface PropertyOption {
   rent_amount: number;
   charges: number;
   status: string;
+  parent: { id: string; title: string } | null;
 }
 
 interface TenantOption {
@@ -67,8 +68,9 @@ export default function NewLeasePage() {
       const [propertiesRes, tenantsRes] = await Promise.all([
         supabase
           .from("properties")
-          .select("id, title, type, address, city, rooms, area, rent_amount, charges, status")
+          .select("id, title, type, address, city, rooms, area, rent_amount, charges, status, parent:parent_id(id, title)")
           .eq("org_id", orgId!)
+          .neq("type", "BUILDING")
           .order("title"),
         supabase
           .from("tenants")
@@ -77,7 +79,7 @@ export default function NewLeasePage() {
           .order("last_name"),
       ]);
 
-      setProperties(propertiesRes.data ?? []);
+      setProperties((propertiesRes.data ?? []) as unknown as PropertyOption[]);
       setTenants(tenantsRes.data ?? []);
     }
     loadData();
@@ -191,7 +193,7 @@ export default function NewLeasePage() {
                   <option value="">-- Selectionnez un bien --</option>
                   {properties.map((property) => (
                     <option key={property.id} value={property.id}>
-                      {property.title} — {property.city} ({property.rent_amount.toLocaleString("fr-FR")} FCFA)
+                      {property.parent ? `${property.parent.title} · ` : ""}{property.title} — {property.city} ({property.rent_amount.toLocaleString("fr-FR")} FCFA)
                     </option>
                   ))}
                 </select>
