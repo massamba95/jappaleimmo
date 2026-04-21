@@ -22,6 +22,7 @@ import {
   CalendarDays,
   CreditCard as CreditCardIcon,
   CalendarCheck,
+  Wrench,
 } from "lucide-react";
 import type { Permission } from "@/lib/permissions";
 
@@ -47,6 +48,7 @@ export function SidebarNav() {
     { href: "/dashboard/payments", label: "Paiements", icon: CreditCard, permission: "payments:view" },
     { href: "/dashboard/suivi", label: "Suivi mensuel", icon: CalendarDays, permission: "payments:view" },
     { href: "/dashboard/visits", label: "Visites", icon: CalendarCheck, permission: "properties:view" },
+    { href: "/dashboard/signalements", label: "Signalements", icon: Wrench, permission: "properties:view" },
     { href: "/dashboard/activity", label: "Historique", icon: History, permission: "team:manage" },
     { href: "/dashboard/team", label: "Equipe", icon: UsersRound, permission: "team:manage" },
     { href: "/dashboard/upgrade",  label: "Mon abonnement", icon: CreditCardIcon, permission: null },

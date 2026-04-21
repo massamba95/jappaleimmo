@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/dashboard/delete-button";
-import { ArrowLeft, Pencil, Phone, Mail, CreditCard } from "lucide-react";
+import { ArrowLeft, Pencil, Phone, Mail, CreditCard, UserPlus, Send } from "lucide-react";
+import { toast } from "sonner";
 
 interface Tenant {
   id: string;
@@ -20,6 +21,8 @@ interface Tenant {
   email: string | null;
   cni: string | null;
   created_at: string;
+  user_id: string | null;
+  invited_at: string | null;
 }
 
 interface LeaseWithProperty {
@@ -46,6 +49,7 @@ export default function TenantDetailPage() {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [leases, setLeases] = useState<LeaseWithProperty[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -53,7 +57,7 @@ export default function TenantDetailPage() {
 
       const { data: tenantData } = await supabase
         .from("tenants")
-        .select("*")
+        .select("id, first_name, last_name, phone, email, cni, created_at, user_id, invited_at")
         .eq("id", id)
         .single();
 
@@ -70,6 +74,35 @@ export default function TenantDetailPage() {
     load();
   }, [id]);
 
+  async function handleInvite() {
+    if (!tenant) return;
+    setInviting(true);
+    try {
+      const res = await fetch(`/api/dashboard/tenants/${tenant.id}/invite`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Erreur lors de l'envoi de l'invitation.");
+        return;
+      }
+      toast.success(
+        tenant.user_id ? "Invitation renvoyée !" : "Invitation envoyée !"
+      );
+      const supabase = createClient();
+      const { data: refreshed } = await supabase
+        .from("tenants")
+        .select("id, first_name, last_name, phone, email, cni, created_at, user_id, invited_at")
+        .eq("id", tenant.id)
+        .single();
+      if (refreshed) setTenant(refreshed as Tenant);
+    } catch {
+      toast.error("Erreur réseau.");
+    } finally {
+      setInviting(false);
+    }
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center py-20"><p className="text-muted-foreground">Chargement...</p></div>;
   }
@@ -77,6 +110,9 @@ export default function TenantDetailPage() {
   if (!tenant) {
     return <div className="text-center py-20"><p>Locataire introuvable.</p></div>;
   }
+
+  const hasEmail = Boolean(tenant.email);
+  const alreadyInvited = Boolean(tenant.user_id);
 
   return (
     <div>
@@ -89,7 +125,35 @@ export default function TenantDetailPage() {
           <h1 className="text-3xl font-bold">{tenant.first_name} {tenant.last_name}</h1>
           <p className="text-muted-foreground mt-1">Locataire depuis le {new Date(tenant.created_at).toLocaleDateString("fr-FR")}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {canEdit && (
+            !hasEmail ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled
+                title="Ajoutez un email au locataire"
+              >
+                <UserPlus className="h-4 w-4 mr-1" />
+                Inviter à l&apos;espace locataire
+              </Button>
+            ) : alreadyInvited ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary">
+                  Invité le {tenant.invited_at ? new Date(tenant.invited_at).toLocaleDateString("fr-FR") : "—"}
+                </Badge>
+                <Button variant="outline" size="sm" onClick={handleInvite} disabled={inviting}>
+                  <Send className="h-4 w-4 mr-1" />
+                  {inviting ? "Envoi..." : "Renvoyer l'invitation"}
+                </Button>
+              </div>
+            ) : (
+              <Button size="sm" onClick={handleInvite} disabled={inviting}>
+                <UserPlus className="h-4 w-4 mr-1" />
+                {inviting ? "Envoi..." : "Inviter à l'espace locataire"}
+              </Button>
+            )
+          )}
           {canEdit && (
             <Link href={`/dashboard/tenants/${id}/edit`}>
               <Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" />Modifier</Button>

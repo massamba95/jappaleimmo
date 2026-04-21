@@ -25,6 +25,8 @@ import {
   UserSquare2,
   CalendarDays,
   CreditCard as CreditCardIcon,
+  CalendarCheck,
+  Wrench,
 } from "lucide-react";
 
 const roleLabels: Record<string, string> = {
@@ -50,6 +52,8 @@ export function MobileNav() {
 
   const moreItems: { href: string; label: string; icon: typeof LayoutDashboard; permission: Permission | null }[] = [
     { href: "/dashboard/suivi", label: "Suivi mensuel", icon: CalendarDays, permission: "payments:view" },
+    { href: "/dashboard/visits", label: "Visites", icon: CalendarCheck, permission: "properties:view" },
+    { href: "/dashboard/signalements", label: "Signalements", icon: Wrench, permission: "properties:view" },
     { href: "/dashboard/owners", label: "Propriétaires", icon: UserSquare2, permission: "owners:view" },
     { href: "/dashboard/leases", label: "Baux", icon: FileText, permission: "leases:view" },
     { href: "/dashboard/activity", label: "Historique", icon: History, permission: "team:manage" },
