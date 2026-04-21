@@ -3,8 +3,8 @@
 -- Executer dans Supabase SQL Editor (Dashboard > SQL Editor)
 -- ============================================================
 
--- 1. SECURITY DEFINER pour isoler les lookups memberships (anti-recursion)
--- =======================================================================
+-- 1. SECURITY DEFINER — fonctions qui bypasses RLS (pas de recursion)
+-- ===================================================================
 CREATE OR REPLACE FUNCTION public.auth_org_ids()
 RETURNS SETOF uuid
 LANGUAGE sql SECURITY DEFINER STABLE AS $$
@@ -16,6 +16,22 @@ RETURNS SETOF uuid
 LANGUAGE sql SECURITY DEFINER STABLE AS $$
   SELECT org_id FROM public.memberships
   WHERE user_id = auth.uid() AND role IN ('ADMIN', 'MANAGER');
+$$;
+
+CREATE OR REPLACE FUNCTION public.auth_tenant_id() RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT id FROM public.tenants WHERE user_id = auth.uid() LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION public.auth_tenant_property_ids() RETURNS SETOF uuid
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT DISTINCT property_id FROM public.leases
+  WHERE tenant_id = public.auth_tenant_id() AND property_id IS NOT NULL;
+$$;
+
+CREATE OR REPLACE FUNCTION public.auth_tenant_lease_ids() RETURNS SETOF uuid
+LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT id FROM public.leases WHERE tenant_id = public.auth_tenant_id();
 $$;
 
 
@@ -52,8 +68,8 @@ CREATE POLICY "membership_delete" ON memberships FOR DELETE USING (
 );
 
 
--- 4. SUBSCRIPTIONS — meme correction
--- ===================================
+-- 4. SUBSCRIPTIONS
+-- ================
 DROP POLICY IF EXISTS "sub_select" ON subscriptions;
 
 CREATE POLICY "sub_select" ON subscriptions FOR SELECT USING (
@@ -61,8 +77,8 @@ CREATE POLICY "sub_select" ON subscriptions FOR SELECT USING (
 );
 
 
--- 5. PROPERTIES — conserver la policy agence + ajouter celle du locataire proprement
--- ==================================================================================
+-- 5. PROPERTIES — agence + locataire
+-- ====================================
 DROP POLICY IF EXISTS "prop_select" ON properties;
 DROP POLICY IF EXISTS "tenant views own property" ON properties;
 
@@ -72,24 +88,23 @@ CREATE POLICY "prop_select" ON properties FOR SELECT USING (
 );
 
 DROP POLICY IF EXISTS "prop_insert" ON properties;
-DROP POLICY IF EXISTS "prop_update" ON properties;
-DROP POLICY IF EXISTS "prop_delete" ON properties;
-
 CREATE POLICY "prop_insert" ON properties FOR INSERT WITH CHECK (
   org_id IN (SELECT public.auth_org_ids())
 );
 
+DROP POLICY IF EXISTS "prop_update" ON properties;
 CREATE POLICY "prop_update" ON properties FOR UPDATE USING (
   org_id IN (SELECT public.auth_org_ids())
 );
 
+DROP POLICY IF EXISTS "prop_delete" ON properties;
 CREATE POLICY "prop_delete" ON properties FOR DELETE USING (
   org_id IN (SELECT public.auth_org_admin_ids())
 );
 
 
--- 6. TENANTS — conserver la policy agence + locataire
--- =====================================================
+-- 6. TENANTS — agence + locataire (se voir lui-meme)
+-- ===================================================
 DROP POLICY IF EXISTS "tenant_select" ON tenants;
 DROP POLICY IF EXISTS "tenant views self" ON tenants;
 
@@ -99,123 +114,118 @@ CREATE POLICY "tenant_select" ON tenants FOR SELECT USING (
 );
 
 DROP POLICY IF EXISTS "tenant_insert" ON tenants;
-DROP POLICY IF EXISTS "tenant_update" ON tenants;
-DROP POLICY IF EXISTS "tenant_delete" ON tenants;
-
 CREATE POLICY "tenant_insert" ON tenants FOR INSERT WITH CHECK (
   org_id IN (SELECT public.auth_org_ids())
 );
 
+DROP POLICY IF EXISTS "tenant_update" ON tenants;
 CREATE POLICY "tenant_update" ON tenants FOR UPDATE USING (
   org_id IN (SELECT public.auth_org_ids())
 );
 
+DROP POLICY IF EXISTS "tenant_delete" ON tenants;
 CREATE POLICY "tenant_delete" ON tenants FOR DELETE USING (
   org_id IN (SELECT public.auth_org_admin_ids())
 );
 
 
--- 7. LEASES — policies via auth_org_ids + locataire
--- ==================================================
-DROP POLICY IF EXISTS "lease_select" ON leases;
-DROP POLICY IF EXISTS "leases_select" ON leases;
+-- 7. LEASES — via property_id (pas de colonne org_id sur leases)
+-- ==============================================================
+DROP POLICY IF EXISTS "Users can view leases for their properties" ON leases;
+DROP POLICY IF EXISTS "Users can insert leases for their properties" ON leases;
+DROP POLICY IF EXISTS "Users can update leases for their properties" ON leases;
+DROP POLICY IF EXISTS "Users can delete leases for their properties" ON leases;
 DROP POLICY IF EXISTS "tenant views own leases" ON leases;
--- Chercher et supprimer toute policy SELECT existante sur leases
-DO $$
-DECLARE
-  pol record;
-BEGIN
-  FOR pol IN
-    SELECT policyname FROM pg_policies
-    WHERE tablename = 'leases' AND cmd = 'SELECT'
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON leases', pol.policyname);
-  END LOOP;
-END $$;
-
-CREATE POLICY "lease_select" ON leases FOR SELECT USING (
-  org_id IN (SELECT public.auth_org_ids())
-  OR tenant_id = public.auth_tenant_id()
-);
-
--- INSERT / UPDATE / DELETE pour l'agence
+DROP POLICY IF EXISTS "lease_select" ON leases;
 DROP POLICY IF EXISTS "lease_insert" ON leases;
 DROP POLICY IF EXISTS "lease_update" ON leases;
 DROP POLICY IF EXISTS "lease_delete" ON leases;
-DO $$
-DECLARE
-  pol record;
-BEGIN
-  FOR pol IN
-    SELECT policyname FROM pg_policies
-    WHERE tablename = 'leases' AND cmd IN ('INSERT', 'UPDATE', 'DELETE')
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON leases', pol.policyname);
-  END LOOP;
-END $$;
+
+CREATE POLICY "lease_select" ON leases FOR SELECT USING (
+  property_id IN (
+    SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+  )
+  OR tenant_id = public.auth_tenant_id()
+);
 
 CREATE POLICY "lease_insert" ON leases FOR INSERT WITH CHECK (
-  org_id IN (SELECT public.auth_org_ids())
+  property_id IN (
+    SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+  )
 );
+
 CREATE POLICY "lease_update" ON leases FOR UPDATE USING (
-  org_id IN (SELECT public.auth_org_ids())
+  property_id IN (
+    SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+  )
 );
+
 CREATE POLICY "lease_delete" ON leases FOR DELETE USING (
-  org_id IN (SELECT public.auth_org_admin_ids())
+  property_id IN (
+    SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_admin_ids())
+  )
 );
 
 
--- 8. PAYMENTS — policies via auth_org_ids + locataire
--- =====================================================
-DO $$
-DECLARE
-  pol record;
-BEGIN
-  FOR pol IN
-    SELECT policyname FROM pg_policies WHERE tablename = 'payments'
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON payments', pol.policyname);
-  END LOOP;
-END $$;
+-- 8. PAYMENTS — via lease_id -> property_id (pas de colonne org_id sur payments)
+-- ===============================================================================
+DROP POLICY IF EXISTS "Users can view payments for their leases" ON payments;
+DROP POLICY IF EXISTS "Users can insert payments for their leases" ON payments;
+DROP POLICY IF EXISTS "Users can update payments for their leases" ON payments;
+DROP POLICY IF EXISTS "Users can delete payments for their leases" ON payments;
+DROP POLICY IF EXISTS "tenant views own payments" ON payments;
+DROP POLICY IF EXISTS "payment_select" ON payments;
+DROP POLICY IF EXISTS "payment_insert" ON payments;
+DROP POLICY IF EXISTS "payment_update" ON payments;
+DROP POLICY IF EXISTS "payment_delete" ON payments;
 
 CREATE POLICY "payment_select" ON payments FOR SELECT USING (
   lease_id IN (
-    SELECT l.id FROM leases l WHERE l.org_id IN (SELECT public.auth_org_ids())
+    SELECT l.id FROM leases l
+    WHERE l.property_id IN (
+      SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+    )
   )
   OR lease_id IN (SELECT public.auth_tenant_lease_ids())
 );
 
 CREATE POLICY "payment_insert" ON payments FOR INSERT WITH CHECK (
   lease_id IN (
-    SELECT l.id FROM leases l WHERE l.org_id IN (SELECT public.auth_org_ids())
+    SELECT l.id FROM leases l
+    WHERE l.property_id IN (
+      SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+    )
   )
 );
 
 CREATE POLICY "payment_update" ON payments FOR UPDATE USING (
   lease_id IN (
-    SELECT l.id FROM leases l WHERE l.org_id IN (SELECT public.auth_org_ids())
+    SELECT l.id FROM leases l
+    WHERE l.property_id IN (
+      SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_ids())
+    )
   )
 );
 
 CREATE POLICY "payment_delete" ON payments FOR DELETE USING (
   lease_id IN (
-    SELECT l.id FROM leases l WHERE l.org_id IN (SELECT public.auth_org_admin_ids())
+    SELECT l.id FROM leases l
+    WHERE l.property_id IN (
+      SELECT id FROM properties WHERE org_id IN (SELECT public.auth_org_admin_ids())
+    )
   )
 );
 
 
--- 9. ISSUES — policies via auth_org_ids + locataire
--- ==================================================
-DO $$
-DECLARE
-  pol record;
-BEGIN
-  FOR pol IN
-    SELECT policyname FROM pg_policies WHERE tablename = 'issues'
-  LOOP
-    EXECUTE format('DROP POLICY IF EXISTS %I ON issues', pol.policyname);
-  END LOOP;
-END $$;
+-- 9. ISSUES — via org_id (la table issues a bien une colonne org_id)
+-- ==================================================================
+DROP POLICY IF EXISTS "org members view issues" ON issues;
+DROP POLICY IF EXISTS "org members update issues" ON issues;
+DROP POLICY IF EXISTS "tenant views own issues" ON issues;
+DROP POLICY IF EXISTS "tenant creates own issues" ON issues;
+DROP POLICY IF EXISTS "issue_select" ON issues;
+DROP POLICY IF EXISTS "issue_insert" ON issues;
+DROP POLICY IF EXISTS "issue_update" ON issues;
 
 CREATE POLICY "issue_select" ON issues FOR SELECT USING (
   org_id IN (SELECT public.auth_org_ids())
@@ -232,8 +242,8 @@ CREATE POLICY "issue_update" ON issues FOR UPDATE USING (
 );
 
 
--- 10. TRIGGER handle_new_user — robuste pour les invitations (pas de metadata)
--- =============================================================================
+-- 10. TRIGGER handle_new_user — robuste pour les invitations (sans metadata)
+-- ==========================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -247,7 +257,7 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'address', '')
   )
   ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
+    email      = EXCLUDED.email,
     first_name = CASE WHEN EXCLUDED.first_name <> '' THEN EXCLUDED.first_name ELSE profiles.first_name END,
     last_name  = CASE WHEN EXCLUDED.last_name  <> '' THEN EXCLUDED.last_name  ELSE profiles.last_name  END,
     phone      = CASE WHEN EXCLUDED.phone      <> '' THEN EXCLUDED.phone      ELSE profiles.phone      END,
@@ -257,22 +267,3 @@ EXCEPTION WHEN OTHERS THEN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
-
--- 11. S'assurer que les fonctions tenant existent (tenant portal)
--- ==============================================================
-CREATE OR REPLACE FUNCTION public.auth_tenant_id() RETURNS uuid
-LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT id FROM public.tenants WHERE user_id = auth.uid() LIMIT 1;
-$$;
-
-CREATE OR REPLACE FUNCTION public.auth_tenant_property_ids() RETURNS SETOF uuid
-LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT DISTINCT property_id FROM public.leases
-  WHERE tenant_id = public.auth_tenant_id() AND property_id IS NOT NULL;
-$$;
-
-CREATE OR REPLACE FUNCTION public.auth_tenant_lease_ids() RETURNS SETOF uuid
-LANGUAGE sql SECURITY DEFINER STABLE AS $$
-  SELECT id FROM public.leases WHERE tenant_id = public.auth_tenant_id();
-$$;
