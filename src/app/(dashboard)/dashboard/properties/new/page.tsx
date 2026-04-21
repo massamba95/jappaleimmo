@@ -25,6 +25,7 @@ interface Building {
   title: string;
   address: string;
   city: string;
+  owner_id: string | null;
 }
 
 export default function NewPropertyPage() {
@@ -63,7 +64,7 @@ export default function NewPropertyPage() {
         supabase.from("properties").select("*", { count: "exact", head: true })
           .eq("org_id", orgId!).neq("type", "BUILDING"),
         supabase.from("owners").select("id, first_name, last_name").eq("org_id", orgId!).order("first_name"),
-        supabase.from("properties").select("id, title, address, city")
+        supabase.from("properties").select("id, title, address, city, owner_id")
           .eq("org_id", orgId!).eq("type", "BUILDING").order("title"),
       ]);
       const limits = getPlanLimits(orgPlan ?? "FREE");
@@ -77,6 +78,19 @@ export default function NewPropertyPage() {
   function updateField(field: string, value: string) {
     setFormData((prev) => ({ ...prev, [field]: value }));
   }
+
+  // Auto-remplir adresse/ville/propriétaire quand on sélectionne un immeuble
+  useEffect(() => {
+    if (!formData.parent_id || buildings.length === 0) return;
+    const parent = buildings.find((b) => b.id === formData.parent_id);
+    if (!parent) return;
+    setFormData((prev) => ({
+      ...prev,
+      address: parent.address,
+      city: parent.city,
+      owner_id: parent.owner_id ?? "",
+    }));
+  }, [formData.parent_id, buildings]);
 
   const isBuilding = formData.type === "BUILDING";
 
