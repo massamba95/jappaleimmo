@@ -48,13 +48,16 @@ export async function POST(
     );
   }
 
-  const redirectTo = "https://jappaleimmo.com/locataire/bienvenue";
-
   // Vérifier si un compte auth existe déjà pour cet email
   const { data: existingUsers } = await admin.auth.admin.listUsers();
   const existingUser = existingUsers?.users?.find(
     (u) => u.email?.toLowerCase() === tenant.email!.toLowerCase()
   );
+
+  // Le type dans l'URL permet à la page bienvenue de savoir quoi afficher
+  const redirectTo = existingUser
+    ? "https://jappaleimmo.com/locataire/bienvenue?type=magiclink"
+    : "https://jappaleimmo.com/locataire/bienvenue?type=invite";
 
   let actionLink: string;
   let resolvedUserId: string | undefined;

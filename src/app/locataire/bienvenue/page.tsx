@@ -18,15 +18,27 @@ export default function LocataireBienvenuePage() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
+  // true = utilisateur existant (magic link) → pas besoin de mot de passe
+  const [isMagicLink, setIsMagicLink] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
+    const searchParams = new URLSearchParams(window.location.search);
+    const type = searchParams.get("type");
+    const isMagic = type === "magiclink";
+    setIsMagicLink(isMagic);
 
-    const code = new URLSearchParams(window.location.search).get("code");
+    const code = searchParams.get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        if (error) setError("Lien expiré ou invalide.");
-        else setReady(true);
+        if (error) {
+          setError("Lien expiré ou invalide.");
+        } else if (isMagic) {
+          // Utilisateur existant : redirection directe
+          router.replace("/locataire");
+        } else {
+          setReady(true);
+        }
       });
       return;
     }
@@ -38,10 +50,15 @@ export default function LocataireBienvenuePage() {
       const refresh_token = params.get("refresh_token") ?? "";
       if (access_token) {
         supabase.auth.setSession({ access_token, refresh_token }).then(({ error }) => {
-          if (error) setError("Lien expiré ou invalide.");
-          else {
+          if (error) {
+            setError("Lien expiré ou invalide.");
+          } else {
             window.history.replaceState(null, "", window.location.pathname);
-            setReady(true);
+            if (isMagic) {
+              router.replace("/locataire");
+            } else {
+              setReady(true);
+            }
           }
         });
         return;
@@ -49,10 +66,17 @@ export default function LocataireBienvenuePage() {
     }
 
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-      else setError("Lien invalide. Demandez une nouvelle invitation à votre agence.");
+      if (data.session) {
+        if (isMagic) {
+          router.replace("/locataire");
+        } else {
+          setReady(true);
+        }
+      } else {
+        setError("Lien invalide. Demandez une nouvelle invitation à votre agence.");
+      }
     });
-  }, []);
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,6 +116,8 @@ export default function LocataireBienvenuePage() {
           <CardDescription>
             {done
               ? "Redirection vers votre espace..."
+              : isMagicLink
+              ? "Connexion en cours..."
               : "Choisissez un mot de passe pour accéder à votre espace."}
           </CardDescription>
         </CardHeader>
@@ -114,10 +140,10 @@ export default function LocataireBienvenuePage() {
               )}
               {!error && !ready && (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  Vérification du lien...
+                  {isMagicLink ? "Connexion en cours, redirection..." : "Vérification du lien..."}
                 </p>
               )}
-              {ready && (
+              {ready && !isMagicLink && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="password">Mot de passe</Label>
