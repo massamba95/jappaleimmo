@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SearchBar } from "@/components/dashboard/search-bar";
+import { CsvImportDialog } from "@/components/dashboard/csv-import-dialog";
 import { Plus, Home, Building, Store, MapPin } from "lucide-react";
 
 interface Property {
@@ -63,6 +64,13 @@ export default function PropertiesPage() {
   const [activeTab, setActiveTab] = useState<"all" | "RENT" | "SALE" | "SOLD">("all");
   const [loading, setLoading] = useState(true);
 
+  async function fetchProperties() {
+    if (!orgId) return;
+    const supabase = createClient();
+    const { data } = await supabase.from("properties").select("*").eq("org_id", orgId).order("created_at", { ascending: false });
+    if (data) setProperties(data);
+  }
+
   useEffect(() => {
     if (!orgId) return;
     async function load() {
@@ -109,6 +117,7 @@ export default function PropertiesPage() {
           <p className="text-muted-foreground mt-1">Gerez votre patrimoine immobilier.</p>
         </div>
         {canCreate && (
+          <CsvImportDialog type="properties" onSuccess={fetchProperties} />
           <Link href="/dashboard/properties/new">
             <Button><Plus className="h-4 w-4 mr-2" />Ajouter un bien</Button>
           </Link>

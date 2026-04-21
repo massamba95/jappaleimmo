@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CsvImportDialog } from "@/components/dashboard/csv-import-dialog";
 import { Plus, Users, Eye } from "lucide-react";
 
 interface Tenant {
@@ -34,6 +35,13 @@ export default function TenantsPage() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+
+  async function fetchTenants() {
+    if (!orgId) return;
+    const supabase = createClient();
+    const { data } = await supabase.from("tenants").select("*").eq("org_id", orgId!).order("created_at", { ascending: false });
+    if (data) setTenants(data);
+  }
 
   useEffect(() => {
     if (!orgId) return;
@@ -74,6 +82,7 @@ export default function TenantsPage() {
           <p className="text-muted-foreground mt-1">Gerez les informations de vos locataires.</p>
         </div>
         {canCreate && (
+          <CsvImportDialog type="tenants" onSuccess={fetchTenants} />
           <Link href="/dashboard/tenants/new">
             <Button><Plus className="h-4 w-4 mr-2" />Ajouter un locataire</Button>
           </Link>
