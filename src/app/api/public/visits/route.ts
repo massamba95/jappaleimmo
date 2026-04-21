@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -9,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Champs requis manquants" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { error } = await supabase.from("visits").insert({
     property_id, org_id, property_title, visitor_name, visitor_phone,
     visitor_email: visitor_email || null,
@@ -22,7 +23,8 @@ export async function POST(req: Request) {
 
   // Notifier l'agence par email
   if (process.env.RESEND_API_KEY) {
-    const { data: org } = await supabase
+    const admin = createAdminClient();
+    const { data: org } = await admin
       .from("organizations")
       .select("name, memberships(profiles(email))")
       .eq("id", org_id)
