@@ -48,21 +48,24 @@ export async function POST(
     );
   }
 
-  // Vérifier si un compte auth existe déjà pour cet email
-  const { data: existingUsers } = await admin.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find(
-    (u) => u.email?.toLowerCase() === tenant.email!.toLowerCase()
-  );
+  // Vérifier si un compte auth existe déjà via la table profiles (plus fiable que listUsers paginé)
+  const { data: existingProfile } = await admin
+    .from("profiles")
+    .select("id")
+    .ilike("email", tenant.email)
+    .maybeSingle();
+
+  const existingUserId = existingProfile?.id ?? null;
 
   // Le type dans l'URL permet à la page bienvenue de savoir quoi afficher
-  const redirectTo = existingUser
+  const redirectTo = existingUserId
     ? "https://jappaleimmo.com/locataire/bienvenue?type=magiclink"
     : "https://jappaleimmo.com/locataire/bienvenue?type=invite";
 
   let actionLink: string;
   let resolvedUserId: string | undefined;
 
-  if (existingUser) {
+  if (existingUserId) {
     // Utilisateur déjà enregistré → envoyer un magic link de connexion
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
@@ -78,7 +81,7 @@ export async function POST(
     }
 
     actionLink = linkData.properties.action_link;
-    resolvedUserId = existingUser.id;
+    resolvedUserId = existingUserId;
   } else {
     // Nouvel utilisateur → invitation classique
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
@@ -98,8 +101,8 @@ export async function POST(
     resolvedUserId = linkData.user?.id;
   }
 
-  // Lier le locataire au compte auth si pas encore fait
-  if (resolvedUserId && !tenant.user_id) {
+  // Lier le locataire au compte auth (toujours mettre à jour user_id si on l'a)
+  if (resolvedUserId) {
     await admin
       .from("tenants")
       .update({ user_id: resolvedUserId, invited_at: new Date().toISOString() })
