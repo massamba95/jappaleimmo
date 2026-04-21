@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useOrg } from "@/lib/hooks/use-org";
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Upload, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
@@ -32,6 +32,9 @@ export default function NewPropertyPage() {
   const searchParams = useSearchParams();
   const { orgId, orgPlan, userId, userName } = useOrg();
   const [loading, setLoading] = useState(false);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const tempId = useRef(crypto.randomUUID());
   const [limitReached, setLimitReached] = useState(false);
   const [owners, setOwners] = useState<Owner[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
@@ -77,6 +80,40 @@ export default function NewPropertyPage() {
 
   const isBuilding = formData.type === "BUILDING";
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const supabase = createClient();
+
+    for (const file of Array.from(files)) {
+      const fileName = `${tempId.current}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("property-photos")
+        .upload(fileName, file);
+
+      if (error) {
+        toast.error(`Erreur upload: ${file.name}`);
+        console.error(error);
+        continue;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("property-photos")
+        .getPublicUrl(fileName);
+
+      setPhotos((prev) => [...prev, urlData.publicUrl]);
+    }
+
+    setUploading(false);
+    toast.success("Photo(s) ajoutée(s) !");
+  }
+
+  function removePhoto(index: number) {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!orgId || limitReached) return;
@@ -115,7 +152,7 @@ export default function NewPropertyPage() {
       unit_label: formData.unit_label || null,
       floor: formData.floor ? parseInt(formData.floor) : null,
       status: "AVAILABLE",
-      photos: [],
+      photos: photos,
     });
 
     if (error) {
@@ -341,6 +378,38 @@ export default function NewPropertyPage() {
                 </p>
               )}
             </div>
+
+            {/* Photos — masqué pour BUILDING */}
+            {!isBuilding && (
+              <div className="space-y-2">
+                <Label>Photos</Label>
+                {photos.length > 0 && (
+                  <div className="flex gap-3 flex-wrap">
+                    {photos.map((url, i) => (
+                      <div key={i} className="relative group">
+                        <img src={url} alt={`Photo ${i + 1}`} className="h-24 w-36 object-cover rounded-lg border" />
+                        <button
+                          type="button"
+                          onClick={() => removePhoto(i)}
+                          className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <label className="cursor-pointer">
+                    <div className="flex items-center gap-2 px-4 py-2 border rounded-lg text-sm hover:bg-muted transition-colors">
+                      <Upload className="h-4 w-4" />
+                      {uploading ? "Upload en cours..." : "Ajouter des photos"}
+                    </div>
+                    <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" disabled={uploading} />
+                  </label>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button type="submit" disabled={loading}>{loading ? "Ajout en cours..." : isBuilding ? "Créer l'immeuble" : "Ajouter le bien"}</Button>

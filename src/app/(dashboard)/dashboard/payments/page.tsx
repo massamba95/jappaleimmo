@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, CreditCard, CheckCircle2, FileDown, MessageCircle } from "lucide-react";
+import { Plus, CreditCard, CheckCircle2, FileDown, MessageCircle, Mail } from "lucide-react";
 
 function buildWhatsAppUrl(phone: string, message: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -51,7 +51,7 @@ interface Payment {
     id: string;
     created_at: string;
     rent_amount: number;
-    tenants: { first_name: string; last_name: string; phone: string } | null;
+    tenants: { first_name: string; last_name: string; phone: string; email: string | null } | null;
     properties: { title: string; address: string; city: string; charges: number; org_id: string } | null;
   } | null;
 }
@@ -85,6 +85,7 @@ export default function PaymentsPage() {
   const [partialPending, setPartialPending] = useState<string | null>(null);
   const [partialAmount, setPartialAmount] = useState("");
   const [partialMethod, setPartialMethod] = useState("CASH");
+  const [sending, setSending] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orgId) return;
@@ -95,7 +96,7 @@ export default function PaymentsPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("payments")
-      .select("*, leases(id, created_at, rent_amount, tenants(first_name, last_name, phone), properties!inner(title, address, city, charges, org_id))")
+      .select("*, leases(id, created_at, rent_amount, tenants(first_name, last_name, phone, email), properties!inner(title, address, city, charges, org_id))")
       .eq("leases.properties.org_id", orgId!)
       .order("created_at", { ascending: false });
 
@@ -281,6 +282,23 @@ export default function PaymentsPage() {
       propertyAddress: lease.properties?.address ?? "",
       propertyCity: lease.properties?.city ?? "",
     });
+  }
+
+  async function handleSendQuittance(payment: Payment) {
+    setSending(payment.id);
+    try {
+      const res = await fetch(`/api/dashboard/payments/${payment.id}/send-quittance`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error ?? "Erreur lors de l'envoi.");
+      } else {
+        toast.success("Quittance envoyée !");
+      }
+    } catch {
+      toast.error("Erreur réseau.");
+    } finally {
+      setSending(null);
+    }
   }
 
   const filtered = payments.filter((p) => {
@@ -473,7 +491,7 @@ export default function PaymentsPage() {
                       </div>
                     )}
                     {payment.status === "PAID" && (
-                      <div className="mt-3 pt-3 border-t">
+                      <div className="mt-3 pt-3 border-t space-y-2">
                         <Button
                           size="sm"
                           variant="outline"
@@ -483,6 +501,18 @@ export default function PaymentsPage() {
                           <FileDown className="h-4 w-4" />
                           Télécharger la quittance
                         </Button>
+                        {tenant?.email && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full gap-2"
+                            disabled={sending === payment.id}
+                            onClick={() => handleSendQuittance(payment)}
+                          >
+                            <Mail className="h-4 w-4" />
+                            {sending === payment.id ? "Envoi..." : "Envoyer par email"}
+                          </Button>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -630,15 +660,29 @@ export default function PaymentsPage() {
                               </a>
                             )}
                             {payment.status === "PAID" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1.5"
-                                onClick={() => handleDownloadQuittance(payment)}
-                              >
-                                <FileDown className="h-3.5 w-3.5" />
-                                Quittance
-                              </Button>
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5"
+                                  onClick={() => handleDownloadQuittance(payment)}
+                                >
+                                  <FileDown className="h-3.5 w-3.5" />
+                                  Quittance
+                                </Button>
+                                {tenant?.email && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    disabled={sending === payment.id}
+                                    onClick={() => handleSendQuittance(payment)}
+                                  >
+                                    <Mail className="h-3.5 w-3.5" />
+                                    {sending === payment.id ? "Envoi..." : "Email"}
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </TableCell>
