@@ -117,10 +117,12 @@ export default function PropertiesPage() {
           <p className="text-muted-foreground mt-1">Gerez votre patrimoine immobilier.</p>
         </div>
         {canCreate && (
-          <CsvImportDialog type="properties" onSuccess={fetchProperties} />
-          <Link href="/dashboard/properties/new">
-            <Button><Plus className="h-4 w-4 mr-2" />Ajouter un bien</Button>
-          </Link>
+          <>
+            <CsvImportDialog type="properties" onSuccess={fetchProperties} />
+            <Link href="/dashboard/properties/new">
+              <Button><Plus className="h-4 w-4 mr-2" />Ajouter un bien</Button>
+            </Link>
+          </>
         )}
       </div>
 

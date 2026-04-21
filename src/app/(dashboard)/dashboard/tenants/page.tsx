@@ -82,10 +82,12 @@ export default function TenantsPage() {
           <p className="text-muted-foreground mt-1">Gerez les informations de vos locataires.</p>
         </div>
         {canCreate && (
-          <CsvImportDialog type="tenants" onSuccess={fetchTenants} />
-          <Link href="/dashboard/tenants/new">
-            <Button><Plus className="h-4 w-4 mr-2" />Ajouter un locataire</Button>
-          </Link>
+          <>
+            <CsvImportDialog type="tenants" onSuccess={fetchTenants} />
+            <Link href="/dashboard/tenants/new">
+              <Button><Plus className="h-4 w-4 mr-2" />Ajouter un locataire</Button>
+            </Link>
+          </>
         )}
       </div>
 
