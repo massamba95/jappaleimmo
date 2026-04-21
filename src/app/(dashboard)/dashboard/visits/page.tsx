@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarCheck, Loader2, CheckCircle2, XCircle, Clock, CheckCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { CalendarCheck, Loader2 } from "lucide-react";
 
 interface Visit {
   id: string;
@@ -18,65 +16,77 @@ interface Visit {
   created_at: string;
 }
 
-const statusConfig: Record<Visit["status"], { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
-  PENDING:   { label: "En attente",  variant: "secondary",    icon: Clock },
-  CONFIRMED: { label: "Confirmée",   variant: "default",      icon: CheckCircle2 },
-  CANCELLED: { label: "Annulée",     variant: "destructive",  icon: XCircle },
-  DONE:      { label: "Effectuée",   variant: "outline",      icon: CheckCheck },
+const statusLabel: Record<string, string> = {
+  PENDING:   "En attente",
+  CONFIRMED: "Confirmée",
+  CANCELLED: "Annulée",
+  DONE:      "Effectuée",
 };
 
-const nextActions: Record<Visit["status"], { status: Visit["status"]; label: string }[]> = {
-  PENDING:   [{ status: "CONFIRMED", label: "Confirmer" }, { status: "CANCELLED", label: "Annuler" }],
-  CONFIRMED: [{ status: "DONE", label: "Marquer effectuée" }, { status: "CANCELLED", label: "Annuler" }],
-  CANCELLED: [],
-  DONE:      [],
+const statusClass: Record<string, string> = {
+  PENDING:   "bg-yellow-100 text-yellow-800",
+  CONFIRMED: "bg-blue-100 text-blue-800",
+  CANCELLED: "bg-red-100 text-red-800",
+  DONE:      "bg-green-100 text-green-800",
 };
 
 export default function VisitsPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
-  const [filter, setFilter] = useState<Visit["status"] | "ALL">("ALL");
+  const [filter, setFilter] = useState<string>("ALL");
 
   useEffect(() => {
     fetch("/api/dashboard/visits")
       .then((r) => r.json())
-      .then((data) => { setVisits(data); setLoading(false); });
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setVisits(data);
+        } else {
+          setError(data?.error ?? "Erreur inconnue");
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
   }, []);
 
-  async function updateStatus(id: string, status: Visit["status"]) {
+  async function updateStatus(id: string, status: string) {
     setUpdating(id);
     await fetch(`/api/dashboard/visits/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
-    setVisits((prev) => prev.map((v) => (v.id === id ? { ...v, status } : v)));
+    setVisits((prev) => prev.map((v) => (v.id === id ? { ...v, status: status as Visit["status"] } : v)));
     setUpdating(null);
   }
 
-  const counts = {
-    ALL:       visits.length,
-    PENDING:   visits.filter((v) => v.status === "PENDING").length,
-    CONFIRMED: visits.filter((v) => v.status === "CONFIRMED").length,
-    CANCELLED: visits.filter((v) => v.status === "CANCELLED").length,
-    DONE:      visits.filter((v) => v.status === "DONE").length,
-  };
-
   const filtered = filter === "ALL" ? visits : visits.filter((v) => v.status === filter);
 
-  const tabs: { key: Visit["status"] | "ALL"; label: string }[] = [
-    { key: "ALL",       label: `Toutes (${counts.ALL})` },
-    { key: "PENDING",   label: `En attente (${counts.PENDING})` },
-    { key: "CONFIRMED", label: `Confirmées (${counts.CONFIRMED})` },
-    { key: "DONE",      label: `Effectuées (${counts.DONE})` },
-    { key: "CANCELLED", label: `Annulées (${counts.CANCELLED})` },
+  const tabs = [
+    { key: "ALL",       label: `Toutes (${visits.length})` },
+    { key: "PENDING",   label: `En attente (${visits.filter(v => v.status === "PENDING").length})` },
+    { key: "CONFIRMED", label: `Confirmées (${visits.filter(v => v.status === "CONFIRMED").length})` },
+    { key: "DONE",      label: `Effectuées (${visits.filter(v => v.status === "DONE").length})` },
+    { key: "CANCELLED", label: `Annulées (${visits.filter(v => v.status === "CANCELLED").length})` },
   ];
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-destructive">Erreur : {error}</p>
       </div>
     );
   }
@@ -91,7 +101,6 @@ export default function VisitsPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 border-b overflow-x-auto">
         {tabs.map((tab) => (
           <button
@@ -116,9 +125,6 @@ export default function VisitsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((visit) => {
-            const cfg = statusConfig[visit.status];
-            const StatusIcon = cfg.icon;
-            const actions = nextActions[visit.status];
             const formattedDate = new Date(visit.requested_date).toLocaleDateString("fr-FR", {
               weekday: "long", day: "numeric", month: "long", year: "numeric",
             });
@@ -128,12 +134,10 @@ export default function VisitsPage() {
                 <div className="flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-base">{visit.property_title}</span>
-                    <Badge variant={cfg.variant} className="flex items-center gap-1">
-                      <StatusIcon className="h-3 w-3" />
-                      {cfg.label}
-                    </Badge>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusClass[visit.status] ?? "bg-muted text-muted-foreground"}`}>
+                      {statusLabel[visit.status] ?? visit.status}
+                    </span>
                   </div>
-
                   <div className="text-sm text-muted-foreground space-y-0.5">
                     <p>
                       <span className="font-medium text-foreground">{visit.visitor_name}</span>
@@ -143,35 +147,49 @@ export default function VisitsPage() {
                         <> · <a href={`mailto:${visit.visitor_email}`} className="hover:underline">{visit.visitor_email}</a></>
                       )}
                     </p>
-                    <p>
-                      {formattedDate}
-                      {visit.requested_time && ` à ${visit.requested_time}`}
-                    </p>
-                    {visit.message && (
-                      <p className="italic text-xs mt-1">"{visit.message}"</p>
-                    )}
+                    <p>{formattedDate}{visit.requested_time && ` à ${visit.requested_time}`}</p>
+                    {visit.message && <p className="italic text-xs">"{visit.message}"</p>}
                   </div>
                 </div>
 
-                {actions.length > 0 && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    {actions.map((action) => (
-                      <Button
-                        key={action.status}
-                        size="sm"
-                        variant={action.status === "CANCELLED" ? "outline" : "default"}
+                <div className="flex gap-2 flex-shrink-0">
+                  {visit.status === "PENDING" && (
+                    <>
+                      <button
                         disabled={updating === visit.id}
-                        onClick={() => updateStatus(visit.id, action.status)}
+                        onClick={() => updateStatus(visit.id, "CONFIRMED")}
+                        className="text-sm font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
                       >
-                        {updating === visit.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          action.label
-                        )}
-                      </Button>
-                    ))}
-                  </div>
-                )}
+                        {updating === visit.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirmer"}
+                      </button>
+                      <button
+                        disabled={updating === visit.id}
+                        onClick={() => updateStatus(visit.id, "CANCELLED")}
+                        className="text-sm font-medium border px-3 py-1.5 rounded-lg hover:bg-muted disabled:opacity-60"
+                      >
+                        Annuler
+                      </button>
+                    </>
+                  )}
+                  {visit.status === "CONFIRMED" && (
+                    <>
+                      <button
+                        disabled={updating === visit.id}
+                        onClick={() => updateStatus(visit.id, "DONE")}
+                        className="text-sm font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 disabled:opacity-60"
+                      >
+                        {updating === visit.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Effectuée"}
+                      </button>
+                      <button
+                        disabled={updating === visit.id}
+                        onClick={() => updateStatus(visit.id, "CANCELLED")}
+                        className="text-sm font-medium border px-3 py-1.5 rounded-lg hover:bg-muted disabled:opacity-60"
+                      >
+                        Annuler
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
