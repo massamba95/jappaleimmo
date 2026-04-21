@@ -74,7 +74,9 @@ export default function ResetPasswordPage() {
     }
     setDone(true);
     setLoading(false);
-    setTimeout(() => router.push("/dashboard"), 2500);
+    // Redirige vers l'espace locataire si le compte est un locataire
+    const { data: tenant } = await supabase.from("tenants").select("id").limit(1).maybeSingle();
+    setTimeout(() => router.push(tenant ? "/locataire" : "/dashboard"), 2500);
   }
 
   return (
@@ -89,7 +91,7 @@ export default function ResetPasswordPage() {
             {done ? "Mot de passe modifié" : "Nouveau mot de passe"}
           </CardTitle>
           <CardDescription>
-            {done ? "Redirection vers votre tableau de bord..." : "Choisissez un nouveau mot de passe."}
+            {done ? "Redirection en cours..." : "Choisissez un nouveau mot de passe."}
           </CardDescription>
         </CardHeader>
         <CardContent>
