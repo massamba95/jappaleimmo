@@ -109,6 +109,13 @@ export async function GET(req: NextRequest) {
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split("T")[0];
 
+  // Passer en LATE tous les PENDING dont la due_date est dépassée
+  await supabase
+    .from("payments")
+    .update({ status: "LATE" })
+    .eq("status", "PENDING")
+    .lt("due_date", todayStr);
+
   const { data: payments, error } = await supabase
     .from("payments")
     .select(`
