@@ -5,7 +5,6 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   MessageCircle, Plus, FileText, ClipboardList,
   CheckCircle2, AlertCircle, Clock, Wrench, TrendingDown,
@@ -16,8 +15,9 @@ interface AgencyInfo {
   phone: string | null;
 }
 
-interface AccountSituation {
+interface LeaseSituation {
   leaseNumber: string;
+  propertyTitle: string;
   propertyAddress: string;
   propertyCity: string;
   totalDue: number;
@@ -31,7 +31,7 @@ interface IssueItem {
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
+const issueStatusConfig: Record<string, { label: string; color: string }> = {
   OPEN:        { label: "Ouvert",   color: "bg-orange-100 text-orange-800" },
   IN_PROGRESS: { label: "En cours", color: "bg-blue-100 text-blue-800" },
   RESOLVED:    { label: "Résolu",   color: "bg-green-100 text-green-800" },
@@ -47,7 +47,7 @@ function buildWhatsAppUrl(phone: string, message: string): string {
 export default function LocataireHomePage() {
   const [firstName, setFirstName] = useState<string>("");
   const [agency, setAgency] = useState<AgencyInfo | null>(null);
-  const [situation, setSituation] = useState<AccountSituation | null>(null);
+  const [situations, setSituations] = useState<LeaseSituation[]>([]);
   const [issues, setIssues] = useState<IssueItem[]>([]);
   const [issueTotal, setIssueTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -68,11 +68,10 @@ export default function LocataireHomePage() {
       if (!tenant) { setLoading(false); return; }
       setFirstName(tenant.first_name ?? "");
 
-      // Leases + payments + issues en parallèle
       const [leasesRes, issuesRes, orgRes] = await Promise.all([
         supabase
           .from("leases")
-          .select("id, created_at, start_date, rent_amount, status, properties(title, address, city)")
+          .select("id, created_at, rent_amount, status, properties(title, address, city)")
           .eq("tenant_id", tenant.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -96,12 +95,11 @@ export default function LocataireHomePage() {
       }
       setAgency({ name: orgAny?.name ?? "Jappalé Immo", phone });
 
-      // Situation compte : bail actif ou le plus récent
+      // Situation par bail
       const allLeases = leasesRes.data ?? [];
-      const activeLease = allLeases.find((l) => l.status === "ACTIVE") ?? allLeases[0] ?? null;
+      const leaseIds = allLeases.map((l) => l.id);
 
-      if (activeLease) {
-        const leaseIds = allLeases.map((l) => l.id);
+      if (leaseIds.length > 0) {
         const { data: payments } = await supabase
           .from("payments")
           .select("id, lease_id, amount, due_date, status")
@@ -109,36 +107,45 @@ export default function LocataireHomePage() {
           .in("status", ["PENDING", "LATE", "PARTIAL"])
           .order("due_date", { ascending: true });
 
-        const leaseRentMap = new Map(allLeases.map((l) => [l.id, l.rent_amount]));
-        const totalDue = (payments ?? []).reduce((s, p) => {
-          if (p.status === "PARTIAL") {
-            const rentAmount = leaseRentMap.get(p.lease_id) ?? 0;
-            return s + Math.max(0, rentAmount - p.amount);
-          }
-          return s + p.amount;
-        }, 0);
-        const nextDue = (payments ?? [])[0]?.due_date ?? null;
-
-        const prop = Array.isArray(activeLease.properties)
-          ? (activeLease.properties[0] ?? null)
-          : (activeLease.properties as { title: string; address: string; city: string } | null);
-
-        const leaseNumber = `BAI-${new Date(activeLease.created_at).getFullYear()}-${activeLease.id.slice(0, 6).toUpperCase()}`;
-        setSituation({
-          leaseNumber,
-          propertyAddress: prop?.address ?? "",
-          propertyCity: prop?.city ?? "",
-          totalDue,
-          nextDueDate: nextDue,
+        const paymentsByLease = new Map<string, typeof payments>();
+        (payments ?? []).forEach((p) => {
+          if (!paymentsByLease.has(p.lease_id)) paymentsByLease.set(p.lease_id, []);
+          paymentsByLease.get(p.lease_id)!.push(p);
         });
+
+        const rows: LeaseSituation[] = allLeases
+          .filter((l) => l.status === "ACTIVE" || l.status === "ACTIVE")
+          // Actifs d'abord, puis terminés
+          .sort((a, b) => (a.status === "ACTIVE" ? -1 : 1) - (b.status === "ACTIVE" ? -1 : 1))
+          .map((l) => {
+            const prop = Array.isArray(l.properties)
+              ? (l.properties[0] ?? null)
+              : (l.properties as { title: string; address: string; city: string } | null);
+
+            const lPayments = paymentsByLease.get(l.id) ?? [];
+            const totalDue = lPayments.reduce((s, p) => {
+              if (p.status === "PARTIAL") return s + Math.max(0, l.rent_amount - p.amount);
+              return s + p.amount;
+            }, 0);
+            const nextDueDate = lPayments[0]?.due_date ?? null;
+
+            return {
+              leaseNumber: `BAI-${new Date(l.created_at).getFullYear()}-${l.id.slice(0, 6).toUpperCase()}`,
+              propertyTitle: prop?.title ?? "",
+              propertyAddress: prop?.address ?? "",
+              propertyCity: prop?.city ?? "",
+              totalDue,
+              nextDueDate,
+            };
+          });
+
+        setSituations(rows);
       }
 
       // Demandes
       const allIssues = (issuesRes.data ?? []) as IssueItem[];
       setIssueTotal(allIssues.length);
-      // Seulement les actives (OPEN / IN_PROGRESS) pour l'aperçu
-      const activeIssues = allIssues.filter((i) => i.status === "OPEN" || i.status === "IN_PROGRESS").slice(0, 3);
-      setIssues(activeIssues);
+      setIssues(allIssues.filter((i) => i.status === "OPEN" || i.status === "IN_PROGRESS").slice(0, 3));
 
       setLoading(false);
     }
@@ -152,6 +159,8 @@ export default function LocataireHomePage() {
 
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
+
+  const globalDue = situations.reduce((s, sit) => s + sit.totalDue, 0);
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -179,47 +188,97 @@ export default function LocataireHomePage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-xs text-muted-foreground">{todayCap}</p>
-            {situation ? (
+
+            {situations.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun contrat associé.</p>
+            ) : situations.length === 1 ? (
+              /* ── Cas 1 bail ── */
               <>
                 <div className="space-y-0.5">
-                  <p className="text-sm font-semibold">Contrat n° {situation.leaseNumber}</p>
-                  {situation.propertyAddress && (
-                    <p className="text-sm text-muted-foreground">{situation.propertyAddress}</p>
+                  <p className="text-sm font-semibold">Contrat n° {situations[0].leaseNumber}</p>
+                  {situations[0].propertyAddress && (
+                    <p className="text-sm text-muted-foreground">{situations[0].propertyAddress}</p>
                   )}
-                  {situation.propertyCity && (
-                    <p className="text-sm text-muted-foreground">{situation.propertyCity}</p>
+                  {situations[0].propertyCity && (
+                    <p className="text-sm text-muted-foreground">{situations[0].propertyCity}</p>
                   )}
                 </div>
-
-                {situation.totalDue === 0 ? (
+                {situations[0].totalDue === 0 ? (
                   <div className="flex items-center gap-2 text-green-700">
                     <CheckCircle2 className="h-4 w-4 shrink-0" />
                     <span className="text-sm font-medium">Votre solde est à jour.</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 text-destructive">
+                  <>
+                    <div className="flex items-center gap-2 text-destructive">
+                      <TrendingDown className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-semibold">
+                        Solde dû : {situations[0].totalDue.toLocaleString("fr-FR")} FCFA
+                      </span>
+                    </div>
+                    {situations[0].nextDueDate && (
+                      <p className="text-xs text-muted-foreground">
+                        Prochaine échéance :{" "}
+                        {new Date(situations[0].nextDueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                      </p>
+                    )}
+                  </>
+                )}
+              </>
+            ) : (
+              /* ── Cas plusieurs baux ── */
+              <>
+                <div className="space-y-3">
+                  {situations.map((sit) => (
+                    <div key={sit.leaseNumber} className="border rounded-lg p-3 space-y-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-muted-foreground">
+                            Contrat n° {sit.leaseNumber}
+                          </p>
+                          {sit.propertyTitle && (
+                            <p className="text-sm font-medium truncate">{sit.propertyTitle}</p>
+                          )}
+                          {sit.propertyCity && (
+                            <p className="text-xs text-muted-foreground">{sit.propertyCity}</p>
+                          )}
+                        </div>
+                        {sit.totalDue === 0 ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                        )}
+                      </div>
+                      {sit.totalDue === 0 ? (
+                        <p className="text-xs text-green-700 font-medium">Solde à jour</p>
+                      ) : (
+                        <p className="text-xs text-destructive font-semibold">
+                          {sit.totalDue.toLocaleString("fr-FR")} FCFA dûs
+                          {sit.nextDueDate && ` · échéance ${new Date(sit.nextDueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}`}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Solde global si >0 */}
+                {globalDue > 0 && (
+                  <div className="flex items-center gap-2 text-destructive pt-1 border-t">
                     <TrendingDown className="h-4 w-4 shrink-0" />
                     <span className="text-sm font-semibold">
-                      Solde dû : {situation.totalDue.toLocaleString("fr-FR")} FCFA
+                      Solde global : {globalDue.toLocaleString("fr-FR")} FCFA
                     </span>
                   </div>
                 )}
-
-                {situation.nextDueDate && situation.totalDue > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Prochaine échéance :{" "}
-                    {new Date(situation.nextDueDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
-                  </p>
-                )}
-
-                <Link href="/locataire/paiements">
-                  <Button variant="outline" size="sm" className="w-full mt-1">
-                    Voir mes paiements
-                  </Button>
-                </Link>
               </>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aucun contrat associé.</p>
+            )}
+
+            {situations.length > 0 && (
+              <Link href="/locataire/paiements">
+                <Button variant="outline" size="sm" className="w-full mt-1">
+                  Voir mes paiements
+                </Button>
+              </Link>
             )}
           </CardContent>
         </Card>
@@ -241,7 +300,7 @@ export default function LocataireHomePage() {
             ) : (
               <div className="space-y-2">
                 {issues.map((issue) => {
-                  const s = statusConfig[issue.status] ?? { label: issue.status, color: "bg-gray-100 text-gray-700" };
+                  const s = issueStatusConfig[issue.status] ?? { label: issue.status, color: "bg-gray-100 text-gray-700" };
                   return (
                     <div key={issue.id} className="flex items-start justify-between gap-2 py-1.5 border-b last:border-0">
                       <div className="flex items-start gap-2 min-w-0">
