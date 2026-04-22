@@ -29,7 +29,7 @@ export async function GET() {
           .from("payments")
           .select("id", { count: "exact", head: true })
           .eq("lease_id", lease.id)
-          .eq("status", "LATE")
+          .in("status", ["LATE", "PARTIAL"])
       : Promise.resolve({ count: 0 }),
     supabase
       .from("issues")

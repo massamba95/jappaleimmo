@@ -104,12 +104,19 @@ export default function LocataireHomePage() {
         const leaseIds = allLeases.map((l) => l.id);
         const { data: payments } = await supabase
           .from("payments")
-          .select("id, amount, due_date, status")
+          .select("id, lease_id, amount, due_date, status")
           .in("lease_id", leaseIds)
-          .in("status", ["PENDING", "LATE"])
+          .in("status", ["PENDING", "LATE", "PARTIAL"])
           .order("due_date", { ascending: true });
 
-        const totalDue = (payments ?? []).reduce((s, p) => s + p.amount, 0);
+        const leaseRentMap = new Map(allLeases.map((l) => [l.id, l.rent_amount]));
+        const totalDue = (payments ?? []).reduce((s, p) => {
+          if (p.status === "PARTIAL") {
+            const rentAmount = leaseRentMap.get(p.lease_id) ?? 0;
+            return s + Math.max(0, rentAmount - p.amount);
+          }
+          return s + p.amount;
+        }, 0);
         const nextDue = (payments ?? [])[0]?.due_date ?? null;
 
         const prop = Array.isArray(activeLease.properties)

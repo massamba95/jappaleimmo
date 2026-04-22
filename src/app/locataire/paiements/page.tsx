@@ -188,7 +188,7 @@ export default function LocatairePaiementsPage() {
   const totalPaid = payments
     .filter((p) => p.status === "PAID")
     .reduce((sum, p) => sum + p.amount, 0);
-  const lateCount = payments.filter((p) => p.status === "LATE").length;
+  const lateCount = payments.filter((p) => p.status === "LATE" || p.status === "PARTIAL").length;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -256,6 +256,12 @@ export default function LocatairePaiementsPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold">
                         {p.amount.toLocaleString("fr-FR")} FCFA
+                        {p.status === "PARTIAL" && p.lease && (
+                          <span className="text-sm font-normal text-muted-foreground ml-1">
+                            versés · reste{" "}
+                            {Math.max(0, p.lease.rent_amount - p.amount).toLocaleString("fr-FR")} FCFA
+                          </span>
+                        )}
                       </span>
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </div>
