@@ -12,7 +12,15 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
+  const todayStr = now.toISOString().split("T")[0];
   const monthStart = `${year}-${month}-01`;
+
+  // Passer en LATE tous les PENDING dont la due_date est dépassée
+  await supabase
+    .from("payments")
+    .update({ status: "LATE" })
+    .eq("status", "PENDING")
+    .lt("due_date", todayStr);
   const nextMonth = new Date(year, now.getMonth() + 1, 1);
   const monthEnd = nextMonth.toISOString().split("T")[0];
 
