@@ -420,7 +420,7 @@ export default function PaymentsPage() {
                         )}
                       </div>
                     )}
-                    {payment.status === "PENDING" && canCreate && (
+                    {(payment.status === "PENDING" || payment.status === "LATE") && canCreate && (
                       <div className="mt-3 pt-3 border-t space-y-2">
                         {markingPaid === payment.id ? (
                           <div className="flex items-center gap-2">
@@ -561,7 +561,7 @@ export default function PaymentsPage() {
                         <TableCell><Badge variant={status?.variant}>{status?.label}</Badge></TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {payment.status === "PENDING" && canCreate && (
+                            {(payment.status === "PENDING" || payment.status === "LATE") && canCreate && (
                               <>
                                 {markingPaid === payment.id ? (
                                   <div className="flex items-center gap-2">
