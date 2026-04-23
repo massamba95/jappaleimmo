@@ -52,11 +52,82 @@ async function shoot(page, filename, opts = {}) {
   fs.mkdirSync(path.dirname(full), { recursive: true });
   await waitForLoaded(page);
   if (opts.wait) await page.waitForTimeout(opts.wait);
+  await maskEmailInDom(page); // cacher l'email réel avant chaque capture
   await page.screenshot({
     path: full,
     fullPage: opts.full !== false,
   });
   console.log(`  📸 ${filename}`);
+}
+
+// Valeurs bidon pour la démo (remplacent temporairement les infos perso)
+const FAKE = {
+  phone: "77 000 11 22",
+  address: "Dakar, Plateau",
+  email: "contact@jappaleimmo.com",
+};
+
+// Remplit un champ controllé par React proprement
+async function fillReactInput(page, selector, value) {
+  await page.evaluate(({ selector, value }) => {
+    const input = document.querySelector(selector);
+    if (!input) return;
+    const setter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value"
+    ).set;
+    setter.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, { selector, value });
+}
+
+// Met à jour le profil avec les valeurs fournies
+async function updateProfile(page, { phone, address }) {
+  console.log(`  🔧 Profil: phone=${phone}, address=${address}`);
+  await page.goto(`${BASE}/dashboard/settings`, { waitUntil: "domcontentloaded" });
+  await waitForLoaded(page);
+  await fillReactInput(page, 'input#phone', phone);
+  await fillReactInput(page, 'input#address', address);
+  await page.click('button[type="submit"]:has-text("Enregistrer")');
+  await page.waitForTimeout(2500);
+}
+
+// Masque tout ce qui contient un email personnel dans le DOM, juste avant la capture
+async function maskEmailInDom(page) {
+  await page.evaluate((fakeEmail) => {
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+
+    // 1. Inputs (ex: champ email du profil)
+    document.querySelectorAll("input").forEach((input) => {
+      if (input.value && input.value.includes("@")) {
+        const setter = Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value"
+        ).set;
+        setter.call(input, fakeEmail);
+      }
+    });
+
+    // 2. Liens mailto:
+    document.querySelectorAll("a[href^='mailto:']").forEach((a) => {
+      a.setAttribute("href", `mailto:${fakeEmail}`);
+      if (a.textContent && a.textContent.includes("@")) {
+        a.textContent = fakeEmail;
+      }
+    });
+
+    // 3. Texte brut n'importe où dans la page
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) {
+      if (n.nodeValue && emailRegex.test(n.nodeValue)) nodes.push(n);
+    }
+    nodes.forEach((node) => {
+      node.nodeValue = node.nodeValue.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, fakeEmail);
+    });
+  }, FAKE.email);
 }
 
 async function login(page) {
@@ -95,8 +166,23 @@ async function main() {
   });
   const page = await context.newPage();
 
+  let originalProfile = null;
   try {
     await login(page);
+
+    // ═══════════════════════════════════════════════════════
+    // BACKUP du profil + bascule vers les valeurs bidon
+    // ═══════════════════════════════════════════════════════
+    console.log("\n🔒 Sauvegarde du profil d'origine");
+    await page.goto(`${BASE}/dashboard/settings`, { waitUntil: "domcontentloaded" });
+    await waitForLoaded(page);
+    originalProfile = await page.evaluate(() => ({
+      phone: document.querySelector("input#phone")?.value ?? "",
+      address: document.querySelector("input#address")?.value ?? "",
+    }));
+    console.log(`  📋 Original: phone="${originalProfile.phone}", address="${originalProfile.address}"`);
+
+    await updateProfile(page, { phone: FAKE.phone, address: FAKE.address });
 
     // ═══════════════════════════════════════════════════════
     // DASHBOARD & PARAMÈTRES
@@ -239,11 +325,30 @@ async function main() {
     await page.goto(`${BASE}/register`, { waitUntil: "domcontentloaded" });
     await shoot(page, "demarrage/01-register.png");
 
+    // ═══════════════════════════════════════════════════════
+    // RESTAURATION du profil d'origine
+    // ═══════════════════════════════════════════════════════
+    if (originalProfile) {
+      console.log("\n♻️  Restauration du profil d'origine");
+      await updateProfile(page, originalProfile);
+      console.log("  ✅ Profil restauré");
+    }
+
     await browser.close();
     console.log(`\n✅ Toutes les captures admin générées dans public/docs/\n`);
   } catch (err) {
     console.error("❌ Erreur:", err.message);
     await page.screenshot({ path: "error.png" }).catch(() => {});
+    // Tenter la restauration même en cas d'erreur
+    if (originalProfile) {
+      console.log("\n♻️  Tentative de restauration du profil...");
+      try {
+        await updateProfile(page, originalProfile);
+        console.log("  ✅ Profil restauré malgré l'erreur");
+      } catch {
+        console.error("  ⚠️  Restauration échouée — vérifier manuellement les paramètres");
+      }
+    }
     await browser.close();
     process.exit(1);
   }
