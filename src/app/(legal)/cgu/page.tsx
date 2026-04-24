@@ -126,8 +126,8 @@ export default function CguPage() {
       <h2 className="text-xl font-semibold mt-8 mb-3">11. Contact</h2>
       <p>
         Pour toute question relative aux présentes CGU, vous pouvez nous contacter à{" "}
-        <a href="mailto:diop199526@gmail.com" className="text-primary underline">
-          diop199526@gmail.com
+        <a href="mailto:contact@jappaleimmo.com" className="text-primary underline">
+          contact@jappaleimmo.com
         </a>.
       </p>
     </>

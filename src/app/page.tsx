@@ -235,7 +235,7 @@ const faqs = [
   },
   {
     q: "Comment contacter le support ?",
-    a: "Par email à diop199526@gmail.com ou via WhatsApp au +33 7 45 86 26 02. Les plans Agence et Entreprise bénéficient d'un support prioritaire avec réponse sous quelques heures.",
+    a: "Par email à contact@jappaleimmo.com ou via WhatsApp au +33 7 45 86 26 02. Les plans Agence et Entreprise bénéficient d'un support prioritaire avec réponse sous quelques heures.",
   },
 ];
 
@@ -573,7 +573,7 @@ export default function HomePage() {
               </div>
             </a>
             <a
-              href="mailto:diop199526@gmail.com"
+              href="mailto:contact@jappaleimmo.com"
               className="flex items-center gap-3 p-4 rounded-xl border hover:border-primary hover:bg-primary/5 transition-colors"
             >
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -581,7 +581,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-semibold">Email</p>
-                <p className="text-xs text-muted-foreground">diop199526@gmail.com</p>
+                <p className="text-xs text-muted-foreground">contact@jappaleimmo.com</p>
               </div>
             </a>
           </div>
@@ -638,9 +638,9 @@ export default function HomePage() {
                 La plateforme de gestion immobilière pour le Sénégal et l&apos;Afrique de l&apos;Ouest.
               </p>
               <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <a href="mailto:diop199526@gmail.com" className="flex items-center gap-2 hover:text-foreground">
+                <a href="mailto:contact@jappaleimmo.com" className="flex items-center gap-2 hover:text-foreground">
                   <Mail className="h-4 w-4" />
-                  diop199526@gmail.com
+                  contact@jappaleimmo.com
                 </a>
                 <a href="tel:+33745862602" className="flex items-center gap-2 hover:text-foreground">
                   <Phone className="h-4 w-4" />

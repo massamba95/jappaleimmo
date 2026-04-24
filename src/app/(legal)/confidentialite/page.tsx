@@ -19,8 +19,8 @@ export default function ConfidentialitePage() {
       <h2 className="text-xl font-semibold mt-8 mb-3">1. Responsable du traitement</h2>
       <p>
         Le responsable du traitement des données est <strong>Jappalé Immo</strong>, joignable à
-        l&apos;adresse <a href="mailto:diop199526@gmail.com" className="text-primary underline">
-          diop199526@gmail.com
+        l&apos;adresse <a href="mailto:contact@jappaleimmo.com" className="text-primary underline">
+          contact@jappaleimmo.com
         </a>.
       </p>
 
@@ -128,8 +128,8 @@ export default function ConfidentialitePage() {
       </ul>
       <p className="mt-3">
         Pour exercer ces droits, écrivez-nous à{" "}
-        <a href="mailto:diop199526@gmail.com" className="text-primary underline">
-          diop199526@gmail.com
+        <a href="mailto:contact@jappaleimmo.com" className="text-primary underline">
+          contact@jappaleimmo.com
         </a>. Nous vous répondrons dans un délai maximal de 30 jours.
       </p>
 
@@ -174,8 +174,8 @@ export default function ConfidentialitePage() {
       <p>
         Pour toute question relative à la présente politique ou au traitement de vos données,
         contactez-nous à{" "}
-        <a href="mailto:diop199526@gmail.com" className="text-primary underline">
-          diop199526@gmail.com
+        <a href="mailto:contact@jappaleimmo.com" className="text-primary underline">
+          contact@jappaleimmo.com
         </a>.
       </p>
     </>
